@@ -243,7 +243,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Tests:** relevance selection, token target, non-empty. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-014).
 
 ## CP-021 — MMR diversity selection
-- **Status:** awaiting-approval
+- **Status:** done — selection/mmr.py (relevance−redundancy greedy), enable_mmr/mmr_lambda config + tests
 - **Description:** `selection/mmr.py` — `λ·relevance − (1−λ)·max_sim(selected)`; λ configurable.
 - **Repo:** contextpilot · **Files:** `selection/mmr.py`, `core/config.py`
 - **Accept:** diverse set chosen over near-duplicates; λ extremes behave (1=pure relevance).

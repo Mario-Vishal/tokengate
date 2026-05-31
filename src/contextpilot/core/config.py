@@ -42,6 +42,9 @@ class OptimizerConfig:
     semantic_dedup_threshold: float = 0.9
     # Keep the top-N blocks after neural reranking before later stages (None = keep all).
     rerank_top_n: int | None = 15
+    # MMR diversity selection: balance relevance vs redundancy (lambda in [0,1]).
+    enable_mmr: bool = True
+    mmr_lambda: float = 0.5
     # Fraction of the budget held back as headroom against tokenizer estimation drift.
     safety_margin: float = 0.05
     # Optional injected counter; the optimizer falls back to the heuristic default.
@@ -65,6 +68,8 @@ class OptimizerConfig:
             raise ConfigurationError("rerank_top_n must be a positive integer or None")
         if not (0.0 <= self.semantic_dedup_threshold <= 1.0):
             raise ConfigurationError("semantic_dedup_threshold must be in [0.0, 1.0]")
+        if not (0.0 <= self.mmr_lambda <= 1.0):
+            raise ConfigurationError("mmr_lambda must be in [0.0, 1.0]")
         if not (0.0 <= self.safety_margin < 1.0):
             raise ConfigurationError("safety_margin must be in [0.0, 1.0)")
 

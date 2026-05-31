@@ -111,6 +111,14 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-021 done: MMR diversity selection
+- `selection/mmr.py`: `mmr_select(blocks, *, lambda_, top_k)` greedy
+  `λ·relevance − (1−λ)·max_sim(selected)`. Relevance = rerank_score else final_score,
+  min-max normalized; similarity = cosine over vectors (0 when a vector is missing).
+- config: `enable_mmr` (True), `mmr_lambda` (0.5, validated [0,1]).
+- Tests `test_mmr.py` (incl. a case where MMR order ≠ pure-relevance order).
+- ruff+mypy(strict) clean; **173 passed, 2 skipped**. Next: CP-022 (value/token budgeting).
+
 ### 2026-05-31 — CP-020 done: embedding extractive compression
 - `compression/extractive.py` upgraded: `score_sentences` = w_sem·cosine(query,sentence)
   + w_kw·keyword_overlap + entity_bonus + heading_bonus; `compress_text` greedy MMR
