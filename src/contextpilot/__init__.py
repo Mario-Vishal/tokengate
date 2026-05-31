@@ -13,6 +13,7 @@ from contextpilot.budgeting.token_counter import (
 )
 from contextpilot.core.block import ContextBlock
 from contextpilot.core.config import OptimizerConfig
+from contextpilot.core.optimizer import ContextPilot
 from contextpilot.core.result import (
     AuditReport,
     BlockDecision,
@@ -30,6 +31,8 @@ __version__ = "0.1.0"
 
 __all__ = [
     "__version__",
+    # optimizer
+    "ContextPilot",
     # models
     "ContextBlock",
     "OptimizationResult",

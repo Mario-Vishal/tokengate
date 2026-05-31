@@ -132,7 +132,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; DECISIONS (required-over-budget behavior).
 
 ## CP-011 — Prompt builder
-- **Status:** pending
+- **Status:** done
 - **Description:** Assemble `final_prompt` from selected blocks: cacheable/stable
   sections first, then query-relevant blocks, then the query. Deterministic format.
 - **Repo:** contextpilot
@@ -143,7 +143,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-012 — Optimizer (end-to-end) + public API
-- **Status:** pending
+- **Status:** done
 - **Description:** `ContextPilot.optimize()` wiring dedup → rank → compress →
   budget → build → audit, returning `OptimizationResult`. Export public symbols in
   `__init__.py`.
@@ -156,7 +156,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API finalized.
 
 ## CP-013 — V1 hardening
-- **Status:** pending
+- **Status:** done — mypy(strict)+ruff clean, 114 tests pass, README example verified, tag v0.1.0
 - **Description:** ruff + mypy clean; coverage review; verify README usage; tag
   `v0.1.0`. Confirm Definition of Done (V1).
 - **Repo:** contextpilot

@@ -57,7 +57,22 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
 
 ## Current implementation status
 
-**Phase 1 — Package skeleton complete. Implementation of core begins next (CP-002).**
+**LIBRARY V1 COMPLETE (v0.1.0).** Full pipeline implemented + tested (114 passing,
+mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Beacon.
+
+### V1 Definition of Done
+- [x] Package installs locally (`uv sync`).
+- [x] ContextBlock, OptimizationResult, AuditReport, BlockDecision implemented.
+- [x] Deduplication (exact) implemented.
+- [x] Ranking (keyword/normalize/hybrid) implemented.
+- [x] Budgeting (greedy, required-first, compress-to-fit) implemented.
+- [x] Prompt builder implemented.
+- [x] Optimizer (`ContextPilot.optimize`) implemented.
+- [x] Audit report implemented.
+- [x] Unit tests passing (114 passed, 1 skipped = optional tiktoken path).
+- [x] README + LIBRARY_API updated and example verified.
+- [x] PROJECT_MEMORY updated.
+
 
 - [x] Repos initialized locally (`contextpilot`, `beacon`), git `main` branch.
 - [x] LICENSE (MIT), `.gitignore`, README created.
@@ -75,9 +90,10 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
 - [x] CP-007 exact dedup + tests.
 - [x] CP-008 ranking (keyword/normalize/hybrid) + tests.
 - [x] CP-009 extractive compression + tests.
-- [x] CP-010 greedy budgeter + tests (ADR-009). Suite **95 passing**.
-- [ ] CP-011 prompt builder → next.
-- [ ] CP-012 optimizer (end-to-end), CP-013 hardening.
+- [x] CP-010 greedy budgeter + tests (ADR-009).
+- [x] CP-011 prompt builder + tests.
+- [x] CP-012 optimizer (end-to-end) + public API + tests.
+- [x] CP-013 hardening: mypy strict + ruff clean, 114 passing, tag v0.1.0.
 
 ## Completed work
 
@@ -167,6 +183,23 @@ blocks producing a prompt + audit (end of library V1).
 - Verified on Python 3.14.0: `uv sync` ok (no native-wheel issues — core has 0 runtime
   deps), `import contextpilot` ok, `uv run pytest` → 2 passed.
 - Committed. Next: CP-002 (utils: errors/logging/hashing).
+
+### 2026-05-30 — CP-011 prompt builder + CP-012 optimizer + CP-013 hardening → V1 DONE
+- CP-011: `prompts/prompt_builder.py` `build_prompt()` — cacheable/stable sections
+  first, numbered context section with source annotations, query last; deterministic.
+  `tests/test_prompt_builder.py`.
+- CP-012: `core/optimizer.py` `ContextPilot.optimize()` wiring dedup→rank→budget→
+  prompt→audit, with input validation and `OptimizationError` wrapping; exported at
+  top level. Also reworked the budgeter to **reserve required-block tokens up front**
+  (so optional selection accounts for them) and emit `prompt_blocks` in ranked order.
+  `tests/test_optimizer.py` (end-to-end + edges: empty, dups, over-budget, required,
+  serialization, determinism).
+- Verified the documented README/LIBRARY_API example runs. Noted that `tokens_saved`
+  can be negative for tiny inputs under a large budget (scaffolding overhead) — honest,
+  documented in LIBRARY_API.
+- CP-013: added mypy override for optional `tiktoken`. **mypy(strict) + ruff clean;
+  `uv run pytest` → 114 passed, 1 skipped.** Tagged **v0.1.0**.
+- **ContextPilot library V1 Definition of Done met.** Next: begin Beacon (BK-001).
 
 ### 2026-05-30 — CP-009 compression + CP-010 budgeter
 - CP-009: `compression/extractive.py` — `split_sentences`, `compress_text`

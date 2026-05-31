@@ -55,3 +55,8 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.10"
 packages = ["contextpilot"]
 strict = true
+
+# Optional extra; may not be installed in the type-checking environment.
+[[tool.mypy.overrides]]
+module = ["tiktoken"]
+ignore_missing_imports = true

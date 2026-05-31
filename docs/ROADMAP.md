@@ -5,6 +5,9 @@ Last updated: **2026-05-30**
 Phases are sequential. A phase is "done" only when its code **and** tests pass and
 `PROJECT_MEMORY.md` is updated.
 
+> **STATUS (2026-05-30): Phases 0–8 COMPLETE — library V1 (v0.1.0) shipped.**
+> 114 tests passing, mypy strict + ruff clean. V2 (below) not started.
+
 ## Phase 0 — Planning ✅ (in progress → done at end of this session)
 - Repo init, license, gitignore, README.
 - All planning docs created.

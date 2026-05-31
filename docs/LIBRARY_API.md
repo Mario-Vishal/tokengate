@@ -1,8 +1,13 @@
 # ContextPilot — LIBRARY API (reference)
 
-> **Status: planned API.** Signatures here are the design target for V1 and will be
-> finalized against the real implementation in task CP-012. Treat mismatches as bugs
-> to reconcile, and update this doc when the code lands.
+> **Status: implemented (V1).** Verified against the code as of CP-012/CP-013 — the
+> end-to-end example below runs. Update this doc alongside any API change.
+
+> **Note on `tokens_saved`.** Savings are `total_candidate_tokens - final_prompt_tokens`.
+> If the candidate context comfortably fits the budget, nothing is dropped and the
+> small prompt scaffolding (`Context:`, `[1]`, `Question:`) can make `tokens_saved`
+> slightly **negative** — that is honest, not a bug. Savings go positive once the
+> candidate context exceeds the budget and blocks are compressed/dropped.
 
 ## Public exports
 
