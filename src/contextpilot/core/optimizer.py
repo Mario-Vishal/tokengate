@@ -29,7 +29,7 @@ from contextpilot.models.base import EmbeddingModel, Reranker
 from contextpilot.models.vectors import embed_query, ensure_block_vectors
 from contextpilot.prompts.prompt_builder import build_prompt
 from contextpilot.ranking.hybrid_ranker import rank_blocks
-from contextpilot.ranking.reranker_stage import rerank_blocks
+from contextpilot.ranking.reranker_stage import apply_rerank_relevance, rerank_blocks
 from contextpilot.ranking.semantic_scorer import apply_semantic_scores
 from contextpilot.selection.mmr import mmr_select
 from contextpilot.utils.errors import ContextPilotError, InvalidBlockError, OptimizationError
@@ -151,12 +151,13 @@ class ContextPilot:
                 source_priorities=cfg.source_priorities,
             )
 
-            # (5) neural reranking + top-N cutoff
+            # (5) neural reranking + top-N cutoff; then let the reranker drive final_score
             reranked = rerank_blocks(query, ranked, self.reranker, top_n=cfg.rerank_top_n)
             kept_ids = {id(b) for b in reranked}
             for b in ranked:
                 if id(b) not in kept_ids:
                     drop(b, "below rerank cutoff")
+            apply_rerank_relevance(reranked, rerank_weight=cfg.rerank_weight)
 
             # (6) semantic deduplication
             if cfg.enable_semantic_dedup:
@@ -182,6 +183,7 @@ class ContextPilot:
                 counter=counter,
                 enable_compression=cfg.enable_compression,
                 embedding_model=embedder,
+                relevance_floor=cfg.relevance_floor,
             )
             decisions.extend(outcome.decisions)
             dropped.extend(outcome.dropped)

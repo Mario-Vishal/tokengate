@@ -49,6 +49,11 @@ class OptimizerConfig:
     # MMR diversity selection: balance relevance vs redundancy (lambda in [0,1]).
     enable_mmr: bool = True
     mmr_lambda: float = 0.5
+    # How much the cross-encoder rerank score dominates final_score post-rerank (ADR-018).
+    rerank_weight: float = 0.7
+    # Drop blocks whose (rerank-blended) final_score is below this before budgeting, so
+    # cheap low-relevance noise can't crowd out relevant content. 0.0 disables.
+    relevance_floor: float = 0.15
     # Fraction of the budget held back as headroom against tokenizer estimation drift.
     safety_margin: float = 0.05
     # Optional injected counter; the optimizer falls back to the heuristic default.
@@ -73,6 +78,10 @@ class OptimizerConfig:
             raise ConfigurationError("semantic_dedup_threshold must be in [0.0, 1.0]")
         if not (0.0 <= self.mmr_lambda <= 1.0):
             raise ConfigurationError("mmr_lambda must be in [0.0, 1.0]")
+        if not (0.0 <= self.rerank_weight <= 1.0):
+            raise ConfigurationError("rerank_weight must be in [0.0, 1.0]")
+        if not (0.0 <= self.relevance_floor <= 1.0):
+            raise ConfigurationError("relevance_floor must be in [0.0, 1.0]")
         if not (0.0 <= self.safety_margin < 1.0):
             raise ConfigurationError("safety_margin must be in [0.0, 1.0)")
 
@@ -114,6 +123,7 @@ _PRESETS: dict[str, dict[str, object]] = {
         "enable_semantic_dedup": False,
         "enable_compression": False,
         "enable_mmr": False,
+        "relevance_floor": 0.2,  # prune aggressively for speed
     },
     # Default all-round profile.
     STRATEGY_BALANCED: {
@@ -133,6 +143,7 @@ _PRESETS: dict[str, dict[str, object]] = {
         "enable_compression": True,
         "enable_mmr": True,
         "mmr_lambda": 0.7,
+        "relevance_floor": 0.10,  # keep more borderline context
     },
     # Squeeze the most into the budget: aggressive compression + larger safety margin +
     # more diversity so varied evidence is compressed in.

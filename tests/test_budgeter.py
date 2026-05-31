@@ -118,6 +118,24 @@ def test_value_per_token_prefers_dense_blocks() -> None:
     assert out.used_tokens == 400
 
 
+def test_relevance_floor_drops_low_score_blocks() -> None:
+    hi = _block("hi", 20, score=0.9)
+    lo = _block("lo", 10, score=0.05)   # below floor despite being cheap
+    out = budget_blocks([hi, lo], query="q", budget_tokens=100, counter=_COUNTER,
+                        relevance_floor=0.15)
+    assert [b.block_id for b in out.included] == ["hi"]
+    assert [b.block_id for b in out.dropped] == ["lo"]
+    d = next(d for d in out.decisions if d.block_id == "lo")
+    assert "relevance floor" in d.reason
+
+
+def test_relevance_floor_zero_disabled() -> None:
+    lo = _block("lo", 10, score=0.05)
+    out = budget_blocks([lo], query="q", budget_tokens=100, counter=_COUNTER,
+                        relevance_floor=0.0)
+    assert [b.block_id for b in out.included] == ["lo"]
+
+
 def test_non_compressible_over_budget_is_dropped_not_compressed() -> None:
     doc = "one. two. three. four. five. six. seven. eight."
     block = ContextBlock(content=doc, block_id="nc", final_score=0.9, compressible=False)

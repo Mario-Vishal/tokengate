@@ -173,6 +173,23 @@ Format: ID · Date · Status · Context · Decision · Consequences.
   Verified: `cuda.is_available()` True, capability (12,0), GPU matmul runs. Beacon's
   embedding/OCR/Ollama GPU usage should align with this (CUDA 12.8 build) too.
 
+### ADR-018 — Reranker drives selection; relevance floor prunes noise
+- **Date:** 2026-05-31 · **Status:** Accepted · **Builds on:** ADR-015/016
+- **Context:** A 20-block real-model run exposed that `rerank_score` was used only for the
+  top-N cutoff, not for selection. The hybrid `final_score` (which includes
+  token_efficiency) let tiny low-relevance blocks (receipts, boilerplate) outrank and
+  crowd out the large, highly-relevant JD — which was then *dropped* for lack of budget
+  instead of compressed.
+- **Decision:** (a) After reranking, blend the **min-max-normalized `rerank_score`** into
+  `final_score` with a dominant weight (`rerank_weight`, default 0.7) so the cross-encoder
+  drives MMR + budgeting. (b) Add a **`relevance_floor`** (default 0.15) that drops
+  optional blocks below it *before* budgeting, so cheap noise can't consume budget; this
+  frees space so high-value large blocks compress-to-fit rather than drop.
+- **Consequences:** Selection now reflects the strongest neural signal. The floor is
+  set-relative (rerank is min-max normalized) — in an all-relevant set it may drop the
+  lowest; default is modest and per-preset (speed 0.2, quality 0.10). Verified on the
+  20-block demo: relevant JD compressed+included, receipts/menus/boilerplate dropped.
+
 ### ADR-016 — Token-aware budgeting as value-per-token optimization
 - **Date:** 2026-05-31 · **Status:** Accepted · **Builds on:** ADR-009
 - **Decision:** Budgeting picks the best *set* under the token budget (knapsack-style,

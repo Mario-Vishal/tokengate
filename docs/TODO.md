@@ -274,3 +274,18 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Repo:** contextpilot · **Files:** tests, benchmark script, docs
 - **Accept:** integration green when models present; benchmark shows neural uplift; V2 DoD met.
 - **Tests:** full suite + integration. **Docs:** PROJECT_MEMORY, ROADMAP, LIBRARY_API, V2_DESIGN.
+
+## CP-025 — Reranker drives selection + relevance floor (quality fix)
+- **Status:** done — rerank blended into final_score; relevance floor; verified on 20-block demo (75.8% saved, junk dropped, JD compressed)
+- **Description:** A 20-block real-model run showed the reranker's signal was used only
+  for the top-N cutoff, so cheap low-relevance blocks crowded out the relevant (large)
+  JD, which got dropped instead of compressed. Fix: (a) blend normalized `rerank_score`
+  into `final_score` as the dominant signal post-rerank; (b)+(c) add a `relevance_floor`
+  so near-zero-relevance blocks are dropped before budgeting — freeing budget so
+  high-value large blocks compress-to-fit instead of being dropped. (ADR-018)
+- **Repo:** contextpilot · **Files:** `core/config.py`, `ranking/reranker_stage.py`,
+  `budgeting/budgeter.py`, `core/optimizer.py`
+- **Accept:** on the 20-block demo the relevant JD is compressed+included and the noise
+  (receipts/menu/etc.) is dropped; existing suite stays green.
+- **Tests:** rerank→final_score blend; budgeter relevance floor; updated optimizer tests.
+- **Docs:** PROJECT_MEMORY, DECISIONS (ADR-018), LIBRARY_API.

@@ -116,6 +116,18 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-025 done: reranker drives selection + relevance floor (ADR-018)
+- A 20-block real-model run exposed that `rerank_score` was only used for the cutoff, so
+  cheap noise outranked the relevant JD (dropped instead of compressed). Fix:
+  `apply_rerank_relevance` blends min-max-normalized rerank into `final_score`
+  (`rerank_weight` 0.7); budgeter `relevance_floor` (0.15; speed 0.2, quality 0.10) drops
+  near-zero-relevance blocks before budgeting.
+- Re-verified on GPU: 20-block demo now **75.8% saved**, relevant files included, JD
+  compressed-to-fit, receipts/menu/boilerplate dropped (floor + cutoff), paraphrase
+  removed by semantic dedup. (Confirmed compress-to-fit fires in multi-block case:
+  jd_full 634→182.)
+- +tests (rerank blend, budgeter floor). ruff+mypy(strict) clean; **182 passed, 4 skipped**.
+
 ### 2026-05-31 — CP-024 done: V2 hardening + benchmark → LIBRARY V2 (v0.2.0)
 - `tests/test_integration.py`: opt-in real-model end-to-end (gated by
   `CONTEXTPILOT_TEST_REAL_MODELS=1`) — **ran on the RTX 5070 Ti, passing**; full neural

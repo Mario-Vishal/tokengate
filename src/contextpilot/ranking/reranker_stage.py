@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from contextpilot.core.block import ContextBlock
 from contextpilot.models.base import Reranker
+from contextpilot.ranking.score_normalizer import normalize_min_max
 from contextpilot.utils.logging import get_logger, log_event
 
 _logger = get_logger("ranking.reranker")
@@ -46,4 +47,22 @@ def rerank_blocks(
     return kept
 
 
-__all__ = ["rerank_blocks"]
+def apply_rerank_relevance(
+    blocks: list[ContextBlock], *, rerank_weight: float = 0.7
+) -> None:
+    """Blend the cross-encoder score into ``final_score`` so the reranker drives
+    downstream selection (MMR + budgeting), not just the top-N cutoff (ADR-018).
+
+    ``rerank_score`` is min-max normalized across ``blocks`` (raw cross-encoder scores
+    are unbounded), then ``final_score = w·norm_rerank + (1−w)·prior_final_score``.
+    """
+    if not blocks:
+        return
+    raw = [b.rerank_score if b.rerank_score is not None else 0.0 for b in blocks]
+    normalized = normalize_min_max(raw)
+    for block, norm in zip(blocks, normalized, strict=True):
+        prior = block.final_score if block.final_score is not None else 0.0
+        block.final_score = rerank_weight * norm + (1.0 - rerank_weight) * prior
+
+
+__all__ = ["rerank_blocks", "apply_rerank_relevance"]

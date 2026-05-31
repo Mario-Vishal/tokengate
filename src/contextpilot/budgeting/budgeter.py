@@ -66,8 +66,13 @@ def budget_blocks(
     counter: TokenCounter | None = None,
     enable_compression: bool = True,
     embedding_model: EmbeddingModel | None = None,
+    relevance_floor: float = 0.0,
 ) -> BudgetOutcome:
     """Select blocks under ``budget_tokens`` (required reserved first, compress-to-fit).
+
+    ``relevance_floor`` drops optional blocks whose ``final_score`` is below it *before*
+    budgeting (ADR-018), so cheap low-relevance noise can't crowd out relevant content
+    and leave no room to compress high-value large blocks. 0.0 disables it.
 
     Compress-to-fit needs ``embedding_model`` (extractive compression scores sentences
     with embeddings). Without one, oversized optional blocks are dropped rather than
@@ -110,6 +115,18 @@ def budget_blocks(
     for block in by_density:
         tokens = block.ensure_token_count(counter)
         score = block.final_score
+
+        # Relevance floor: prune low-relevance blocks before they consume budget.
+        if relevance_floor > 0.0 and (score if score is not None else 0.0) < relevance_floor:
+            result[id(block)] = (
+                DECISION_DROPPED,
+                None,
+                BlockDecision(block.block_id, DECISION_DROPPED,
+                              f"below relevance floor ({relevance_floor:.2f})",
+                              tokens, 0, score, rerank_score=block.rerank_score),
+            )
+            continue
+
         remaining = budget_tokens - outcome.used_tokens
 
         if tokens <= remaining:

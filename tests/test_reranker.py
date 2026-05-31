@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 from contextpilot import ContextBlock
 from contextpilot.models import FakeReranker
-from contextpilot.ranking.reranker_stage import rerank_blocks
+from contextpilot.ranking.reranker_stage import apply_rerank_relevance, rerank_blocks
 
 
 def test_empty_returns_empty() -> None:
@@ -43,3 +45,17 @@ def test_top_n_none_keeps_all() -> None:
 def test_top_n_larger_than_input() -> None:
     blocks = [ContextBlock(content="one job"), ContextBlock(content="two job")]
     assert len(rerank_blocks("job", blocks, FakeReranker(), top_n=10)) == 2
+
+
+def test_apply_rerank_relevance_blends_into_final_score() -> None:
+    a = ContextBlock(content="x", rerank_score=1.0, final_score=0.2, block_id="a")
+    b = ContextBlock(content="y", rerank_score=0.0, final_score=0.2, block_id="b")
+    apply_rerank_relevance([a, b], rerank_weight=0.7)
+    # a: norm rerank 1.0 -> 0.7*1 + 0.3*0.2 = 0.76 ; b: norm 0 -> 0.3*0.2 = 0.06
+    assert a.final_score == pytest.approx(0.76)
+    assert b.final_score == pytest.approx(0.06)
+    assert a.final_score > b.final_score
+
+
+def test_apply_rerank_relevance_empty_noop() -> None:
+    apply_rerank_relevance([])  # must not raise
