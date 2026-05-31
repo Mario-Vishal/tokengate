@@ -1,0 +1,57 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# ---- Virtual environments / uv ----
+.venv/
+venv/
+env/
+.uv/
+
+# ---- Testing / coverage ----
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# ---- Type checking / linting caches ----
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# ---- IDE / editor ----
+.idea/
+.vscode/
+*.swp
+*~
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Local data (never commit user/private data) ----
+.data/
+.cache/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+*.lance/
+embeddings/
+
+# ---- Benchmarks / scratch ----
+benchmarks/output/
+scratch/
