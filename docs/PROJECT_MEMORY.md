@@ -66,9 +66,13 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
       with typed stubs + `py.typed`. `uv sync` green on Python 3.14; `import contextpilot`
       works; 2 smoke tests pass.
 - [x] CP-002 utils (errors/logging/hashing) + tests.
-- [x] CP-003 `ContextBlock` model + tests. Suite at 29 passing.
-- [ ] CP-004 result/audit models → next.
-- [ ] Remaining pipeline modules + optimizer.
+- [x] CP-003 `ContextBlock` model + tests.
+- [x] CP-004 result/audit models (`OptimizationResult`/`AuditReport`/`BlockDecision`)
+      + `build_audit_report` + tests.
+- [x] CP-005 `OptimizerConfig` + strategy preset + `ConfigurationError` + tests.
+      Suite at **48 passing**, ruff clean.
+- [ ] CP-006 token counting → next.
+- [ ] Remaining pipeline modules (dedup, ranking, compression, budgeter, prompt) + optimizer.
 
 ## Completed work
 
@@ -158,6 +162,17 @@ blocks producing a prompt + audit (end of library V1).
 - Verified on Python 3.14.0: `uv sync` ok (no native-wheel issues — core has 0 runtime
   deps), `import contextpilot` ok, `uv run pytest` → 2 passed.
 - Committed. Next: CP-002 (utils: errors/logging/hashing).
+
+### 2026-05-30 — CP-004 result/audit models + CP-005 config
+- CP-004: `core/result.py` (`BlockDecision`, `AuditReport`, `OptimizationResult` +
+  decision constants, all serializable) and `audit/audit_report.py`
+  (`build_audit_report` — derives counts + tokens_saved/percent, safe on 0 tokens,
+  reports negative savings honestly). Models exported top-level. `tests/test_result.py`.
+- CP-005: `core/config.py` `OptimizerConfig` (max_prompt_tokens, strategy, weights,
+  toggles, safety_margin, optional token_counter) with validation, `effective_budget`
+  property, `for_strategy()` preset factory; added `ConfigurationError` to the error
+  hierarchy. `tests/test_config.py`.
+- ruff clean; `uv run pytest` → **48 passed**. Next: CP-006 (token counting).
 
 ### 2026-05-30 — CP-002 utils + CP-003 ContextBlock
 - CP-002: `utils/errors.py` (ContextPilotError → InvalidBlockError/BudgetError/

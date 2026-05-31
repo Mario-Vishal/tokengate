@@ -8,8 +8,15 @@ skeleton phase (CP-001) only the version is guaranteed importable; models and th
 from __future__ import annotations
 
 from contextpilot.core.block import ContextBlock
+from contextpilot.core.config import OptimizerConfig
+from contextpilot.core.result import (
+    AuditReport,
+    BlockDecision,
+    OptimizationResult,
+)
 from contextpilot.utils.errors import (
     BudgetError,
+    ConfigurationError,
     ContextPilotError,
     InvalidBlockError,
     OptimizationError,
@@ -21,9 +28,14 @@ __all__ = [
     "__version__",
     # models
     "ContextBlock",
+    "OptimizationResult",
+    "AuditReport",
+    "BlockDecision",
+    "OptimizerConfig",
     # errors
     "ContextPilotError",
     "InvalidBlockError",
     "BudgetError",
     "OptimizationError",
+    "ConfigurationError",
 ]

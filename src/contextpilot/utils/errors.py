@@ -30,9 +30,14 @@ class OptimizationError(ContextPilotError):
     """An unexpected failure occurred while running the optimization pipeline."""
 
 
+class ConfigurationError(ContextPilotError):
+    """The optimizer was given invalid configuration (bad weights, strategy, etc.)."""
+
+
 __all__ = [
     "ContextPilotError",
     "InvalidBlockError",
     "BudgetError",
     "OptimizationError",
+    "ConfigurationError",
 ]

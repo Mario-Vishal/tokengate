@@ -18,7 +18,6 @@ from contextpilot.utils.hashing import (
 )
 from contextpilot.utils.logging import get_logger, log_event
 
-
 # --- errors ---------------------------------------------------------------
 
 def test_error_hierarchy() -> None:

@@ -55,7 +55,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-004 — Core models: results & audit
-- **Status:** pending
+- **Status:** done
 - **Description:** Implement `OptimizationResult`, `AuditReport`, `BlockDecision`
   with serialization. Audit holds counts + token math + per-block decisions.
 - **Repo:** contextpilot
@@ -65,7 +65,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-005 — Config & strategy
-- **Status:** pending
+- **Status:** done
 - **Description:** `OptimizerConfig` (max_prompt_tokens, strategy, weights, toggles,
   safety margin). `balanced` preset. Validate values.
 - **Repo:** contextpilot
