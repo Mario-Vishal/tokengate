@@ -18,7 +18,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** this file + PROJECT_MEMORY created.
 
 ## CP-001 — Package skeleton + pyproject (uv)
-- **Status:** pending
+- **Status:** done
 - **Description:** Create `pyproject.toml` (PEP 621, src layout, optional `tiktoken`
   extra, dev deps pytest/ruff/mypy). Create `src/contextpilot/` tree with
   `__init__.py` and empty typed module files per ARCHITECTURE. Add `py.typed`.

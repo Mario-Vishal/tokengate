@@ -3,7 +3,7 @@
 > **This is the single source of truth for the ContextPilot library.**
 > Update it after every meaningful work session. Newest "Session log" entry on top.
 
-Last updated: **2026-05-30**
+Last updated: **2026-05-30** (CP-001 done)
 
 ---
 
@@ -57,19 +57,23 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
 
 ## Current implementation status
 
-**Phase 0 — Planning. No product code yet.**
+**Phase 1 — Package skeleton complete. Implementation of core begins next (CP-002).**
 
 - [x] Repos initialized locally (`contextpilot`, `beacon`), git `main` branch.
 - [x] LICENSE (MIT), `.gitignore`, README created.
 - [x] Planning docs created (this file, ARCHITECTURE, ROADMAP, DECISIONS, ERROR_LOG, TODO, LIBRARY_API).
-- [ ] `pyproject.toml` + package skeleton.
+- [x] **CP-001:** `pyproject.toml` (uv, src layout, hatchling) + full package skeleton
+      with typed stubs + `py.typed`. `uv sync` green on Python 3.14; `import contextpilot`
+      works; 2 smoke tests pass.
+- [ ] CP-002 utils (errors/logging/hashing) → next.
 - [ ] Core models, pipeline modules, optimizer.
-- [ ] Tests.
 
 ## Completed work
 
 - 2026-05-30: Project kickoff. Confirmed scope, naming, tooling. Created repo
   skeletons and full planning doc set for the library.
+- 2026-05-30: **CP-001** — package skeleton + `pyproject.toml`. Verified `uv sync`,
+  import, and pytest (2 passing) on Python 3.14.0.
 
 ## User feedback and requirements
 
@@ -120,7 +124,7 @@ uv init / uv sync / uv run pytest
 
 - Runtime: none yet (target: zero required runtime deps for the core).
 - Optional extras (planned): `tiktoken` (accurate token counting).
-- Dev (planned): `pytest`, `ruff`, `mypy`.
+- Dev (installed via uv group): `pytest` 9.0.3, `ruff` 0.15.15, `mypy` 2.1.0.
 
 ## Demo status
 
@@ -137,3 +141,11 @@ blocks producing a prompt + audit (end of library V1).
 - Wrote LICENSE, `.gitignore`, README, and all seven library planning docs.
 - GitHub remotes deferred until user installs `gh` and authenticates.
 - Next: scaffold package + `pyproject.toml` (CP-001).
+
+### 2026-05-30 — CP-001 package skeleton
+- Added `pyproject.toml` (uv-managed, src layout, hatchling build, optional `tiktoken`
+  extra, dev group pytest/ruff/mypy). Created full `src/contextpilot/` tree with typed
+  stub modules tagged by their implementing task, `py.typed`, and `tests/`.
+- Verified on Python 3.14.0: `uv sync` ok (no native-wheel issues — core has 0 runtime
+  deps), `import contextpilot` ok, `uv run pytest` → 2 passed.
+- Committed. Next: CP-002 (utils: errors/logging/hashing).
