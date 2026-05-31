@@ -34,7 +34,7 @@ Format: ID · Date · Status · Context · Decision · Consequences.
   approximate; exactness is opt-in.
 
 ### ADR-004 — Pure core: no I/O, no LLM, no network
-- **Date:** 2026-05-30 · **Status:** Accepted
+- **Date:** 2026-05-30 · **Status:** SUPERSEDED by ADR-010 (2026-05-31)
 - **Context:** The library must be reusable and app-agnostic.
 - **Decision:** The core performs no network calls, no user-data disk I/O, and
   never calls an LLM. It only transforms inputs into results.
@@ -43,7 +43,7 @@ Format: ID · Date · Status · Context · Decision · Consequences.
   the *caller* drives.
 
 ### ADR-005 — Semantic scores are caller-provided
-- **Date:** 2026-05-30 · **Status:** Accepted
+- **Date:** 2026-05-30 · **Status:** AMENDED by ADR-011 (2026-05-31)
 - **Context:** Embeddings require a model and infra that belong to the application.
 - **Decision:** Each `ContextBlock` carries an optional `semantic_score` supplied by
   the caller (e.g. retrieval similarity). The library computes `keyword_score` and
@@ -92,3 +92,78 @@ Format: ID · Date · Status · Context · Decision · Consequences.
   reserved). The config carries the knobs the future presets will set.
 - **Consequences:** Forward-compatible public API; presets become data, not API
   changes.
+
+---
+
+## V2 — Neural engine (approved 2026-05-31)
+
+### ADR-010 — Neural-first engine; embeddings + reranker are required core
+- **Date:** 2026-05-31 · **Status:** Accepted · **Supersedes:** ADR-004
+- **Context:** The user's mature vision requires real neural sophistication, not
+  deterministic heuristics with optional add-ons. "Nothing is optional."
+- **Decision:** ContextPilot is a **neural** context-optimization engine. Embedding
+  similarity and **cross-encoder reranking are required, first-class core components**
+  (configurable models, never optional, no runtime fallback). The library takes real ML
+  dependencies (PyTorch + sentence-transformers / FlagEmbedding + numpy). V1's
+  deterministic pieces (keyword scoring, exact dedup, extractive selection) survive only
+  as *signals/components* within the neural pipeline. The single generative LLM call
+  remains downstream in the app; **no generative compression** in the path.
+- **Consequences:** Far more capable and differentiated. Heavier install, GPU-aware,
+  needs a constrained Python (ADR-012). Determinism via fixed model weights + seeds;
+  unit tests use fake models (test-only, not a product mode). Reverses the
+  zero-dependency stance of ADR-004.
+
+### ADR-011 — Reuse caller-provided block vectors; model owns query/sentence/rerank
+- **Date:** 2026-05-31 · **Status:** Accepted · **Amends:** ADR-005
+- **Context:** Beacon's LanceDB already stores BGE-M3 vectors per chunk. Re-embedding
+  every candidate per query wastes compute.
+- **Decision:** When a `ContextBlock` carries a precomputed vector, semantic scoring,
+  semantic dedup, and MMR reuse it. The required embedding model always computes the
+  **query** embedding, **sentence-level** embeddings (for extractive compression), and
+  the **reranker** runs the cross-encoder. `semantic_score` may still be supplied, but a
+  model is always present (not "caller-provided or nothing" as in ADR-005).
+- **Consequences:** Efficient and sophisticated. The block vector dim must match the
+  model (validated; mismatch → recompute or error). Vectors are an input contract
+  between Beacon indexing and ContextPilot.
+
+### ADR-012 — Pin the library to Python 3.12
+- **Date:** 2026-05-31 · **Status:** Accepted
+- **Context:** PyTorch / sentence-transformers / FlagEmbedding wheels are unreliable on
+  Python 3.14 (the local default). The pure V1 had no such constraint.
+- **Decision:** The `contextpilot` repo targets **Python 3.12**; uv manages a 3.12 venv.
+  `requires-python` updated accordingly.
+- **Consequences:** Reliable ML installs. Beacon's backend should align to 3.12 too
+  (resolves PD-3). Contributors need 3.12 available (uv can fetch it).
+
+### ADR-013 — Default models: BGE-M3 dense + bge-reranker-v2-m3
+- **Date:** 2026-05-31 · **Status:** Accepted
+- **Context:** Need strong, multilingual, locally-runnable defaults that pair well.
+- **Decision:** Default embeddings **`BAAI/bge-m3`** (dense, dim 1024); default reranker
+  **`BAAI/bge-reranker-v2-m3`** (cross-encoder). Both configurable. BGE-M3's
+  sparse/multi-vector (ColBERT) modes are a later enhancement; V2 starts dense.
+- **Consequences:** Consistent with Beacon's embedding choice (ADR-108). Models are
+  downloaded on first use (document size/cache); offline use needs a pre-pull.
+
+### ADR-014 — Compression stays extractive; no generative LLM in the path
+- **Date:** 2026-05-31 · **Status:** Accepted (reaffirms a hard product rule)
+- **Decision:** Compression selects original sentences/paragraphs via embedding +
+  lexical + entity/heading scoring; it never rewrites text and never calls a generative
+  LLM. The only generative call is the final answer, made downstream by the app.
+- **Consequences:** No hallucination risk from compression; real token/compute savings;
+  excludes LLM-JSON "structured compression" from the main path.
+
+### ADR-015 — MMR diversity selection
+- **Date:** 2026-05-31 · **Status:** Accepted
+- **Decision:** Selection uses Maximal Marginal Relevance
+  (`λ·relevance − (1−λ)·max_sim(selected)`, λ configurable) so the chosen set is
+  relevant *and* non-redundant.
+- **Consequences:** Richer evidence sets; one more configurable knob; needs vectors for
+  the similarity term.
+
+### ADR-016 — Token-aware budgeting as value-per-token optimization
+- **Date:** 2026-05-31 · **Status:** Accepted · **Builds on:** ADR-009
+- **Decision:** Budgeting picks the best *set* under the token budget (knapsack-style,
+  greedy by value/token with required-first reservation), compressing high-value large
+  blocks before dropping — not naive top-k stuffing.
+- **Consequences:** Better information density per token; more complex selection logic;
+  required-over-budget behavior (ADR-009) still holds.

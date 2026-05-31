@@ -111,6 +111,33 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — Mature vision: neural context optimization (V2 direction)
+User paused Beacon and specified the "mature" ContextPilot: a **neural** context
+optimization engine. Full spec captured in [`V2_DESIGN.md`](V2_DESIGN.md). Essentials:
+- Pipeline: normalize → semantic+keyword scoring → **neural reranking** → **semantic
+  dedup** → extractive compression → **MMR diversity** → token-aware budgeting → prompt
+  → audit.
+- **Embedding + reranker models select/score context; a generative LLM is used only
+  once downstream for the final answer. NO generative/LLM compression in the main path
+  — extractive only.**
+- Hybrid ranking expands to multi-signal (semantic, keyword, recency, source_priority,
+  token_efficiency). Budgeting becomes value-per-token "best set under budget".
+- Audit gains `models_used`, `rerank_score`, richer reasons.
+- Retrieval (LanceDB top-50) stays in the app, before ContextPilot — unchanged.
+
+**User correction (2026-05-31):** the sophisticated techniques are **NOT optional** —
+neural is the engine. Approved direction: embeddings + cross-encoder reranker are
+**required, first-class core** (configurable, never optional); ContextPilot takes real
+ML deps (PyTorch + BGE models); **no deterministic product fallback**. Approved
+decisions: reuse caller-provided block vectors (model computes query/sentence
+embeddings + reranking); **pin library to Python 3.12**; defaults **BGE-M3 dense +
+bge-reranker-v2-m3**. This **supersedes ADR-004** (pure core) and **amends ADR-005**
+(caller-provided scores → reuse vectors, but model always present). Full design in
+[`V2_DESIGN.md`](V2_DESIGN.md). **Next: present sequential V2 task breakdown for user
+review BEFORE writing any code (user requires explicit approval to proceed).**
+
+### 2026-05-30 — original requirements
+
 - Two **separate** repos; library must be app-agnostic, app must import the library
   (no duplicated core logic).
 - Repos are **private** on GitHub (to be created after user installs `gh` + auths).

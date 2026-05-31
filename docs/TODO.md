@@ -167,6 +167,110 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 
 ---
 
-### Backlog (V2 — do not start until V1 stable)
-- Semantic/near-duplicate dedup · reranker adapter · structured LLM compression ·
-  strategy presets · cache-aware sectioning · optimization cache · benchmark suite.
+---
+
+# V2 — Neural engine (CP-014 … CP-024)
+
+> Direction approved 2026-05-31 (ADR-010..016, [`V2_DESIGN.md`](V2_DESIGN.md)).
+> **GATE: do not begin CP-014 until the user signs off on this breakdown.** Sequential.
+> Neural is required core (not optional). No generative LLM in the path.
+
+## CP-014 — Environment & ML dependencies (Python 3.12)
+- **Status:** awaiting-approval
+- **Description:** Set `requires-python = ">=3.12,<3.13"`; create uv 3.12 venv; add core
+  deps `torch`, `sentence-transformers` and/or `FlagEmbedding`, `numpy`. Verify they
+  install and import; document download/cache behavior of models.
+- **Repo:** contextpilot
+- **Files:** `pyproject.toml`, `uv.lock`, PROJECT_MEMORY
+- **Accept:** `uv sync` on 3.12 succeeds; `import torch`, embedder/reranker libs import.
+- **Tests:** import smoke test (skipped if libs absent in CI).
+- **Docs:** PROJECT_MEMORY (deps, commands), ERROR_LOG if wheel issues, DECISIONS (ADR-012).
+
+## CP-015 — Model layer (protocols + BGE defaults + fakes)
+- **Status:** awaiting-approval
+- **Description:** `models/` package: `EmbeddingModel` + `Reranker` protocols;
+  `BGEM3Embedder` (BAAI/bge-m3, dense, GPU-aware), `BGEReranker`
+  (BAAI/bge-reranker-v2-m3); deterministic `FakeEmbeddingModel`/`FakeReranker` for tests.
+- **Repo:** contextpilot
+- **Files:** `models/__init__.py`, `models/base.py`, `models/bge.py`, `models/fakes.py`
+- **Accept:** fakes work offline; real models load when present; `dim` exposed; GPU used
+  if available else CPU.
+- **Tests:** fakes; cosine sanity; real-model test opt-in/skipped.
+- **Docs:** PROJECT_MEMORY; LIBRARY_API (model interfaces); DECISIONS (ADR-013).
+
+## CP-016 — Block vectors (reuse or compute)
+- **Status:** awaiting-approval
+- **Description:** Add `vector: Sequence[float] | None` to `ContextBlock`; helper to
+  ensure vectors (reuse if present, else embed via model); validate dim vs model.
+- **Repo:** contextpilot
+- **Files:** `core/block.py`, `models/` helper, tests
+- **Accept:** provided vectors reused; missing ones computed; dim mismatch raises/recomputes.
+- **Tests:** reuse path, compute path, dim-mismatch. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-011).
+
+## CP-017 — Semantic scoring + expanded hybrid ranking
+- **Status:** awaiting-approval
+- **Description:** Cosine semantic score (query vec vs block vec, numpy). Expand hybrid
+  ranking with recency, source_priority, token_efficiency signals + configurable weights
+  with renormalization for missing signals.
+- **Repo:** contextpilot
+- **Files:** `ranking/semantic_scorer.py`, `ranking/hybrid_ranker.py`, `core/config.py`
+- **Accept:** semantic scores in [0,1]; weights renormalize; deterministic. **Tests:**
+  scoring + weighting. **Docs:** PROJECT_MEMORY; LIBRARY_API.
+
+## CP-018 — Neural reranking stage
+- **Status:** awaiting-approval
+- **Description:** `ranking/reranker_stage.py` — run cross-encoder over (query, chunk);
+  set `rerank_score`; keep top `rerank_top_n`.
+- **Repo:** contextpilot · **Files:** `ranking/reranker_stage.py`, `core/config.py`
+- **Accept:** reranks a candidate set; top-n cutoff honored; fake reranker in tests.
+- **Tests:** ordering by rerank; cutoff. **Docs:** PROJECT_MEMORY; LIBRARY_API.
+
+## CP-019 — Semantic deduplication
+- **Status:** awaiting-approval
+- **Description:** `deduplication/semantic.py` — cosine threshold dedup over block
+  vectors; keep best representative (rerank/score/length/recency/source); record reasons.
+- **Repo:** contextpilot · **Files:** `deduplication/semantic.py`
+- **Accept:** near-duplicates collapsed; best kept; reasons recorded. **Tests:**
+  paraphrase pair collapses; distinct survive. **Docs:** PROJECT_MEMORY; DECISIONS (already ADR'd).
+
+## CP-020 — Embedding extractive compression
+- **Status:** awaiting-approval
+- **Description:** Upgrade `compression/extractive.py` to score sentences by
+  `semantic_sim + keyword_overlap + entity_bonus + heading_bonus − redundancy`; keep
+  original sentences to `target_tokens`; still no LLM.
+- **Repo:** contextpilot · **Files:** `compression/extractive.py`
+- **Accept:** keeps query-relevant sentences; ≤ target; never empties; records method.
+- **Tests:** relevance selection, token target, non-empty. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-014).
+
+## CP-021 — MMR diversity selection
+- **Status:** awaiting-approval
+- **Description:** `selection/mmr.py` — `λ·relevance − (1−λ)·max_sim(selected)`; λ configurable.
+- **Repo:** contextpilot · **Files:** `selection/mmr.py`, `core/config.py`
+- **Accept:** diverse set chosen over near-duplicates; λ extremes behave (1=pure relevance).
+- **Tests:** diversity vs redundancy. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-015).
+
+## CP-022 — Value-per-token budgeting
+- **Status:** awaiting-approval
+- **Description:** Upgrade budgeter to value/token "best set under budget" (knapsack-style
+  greedy), required-first reservation (ADR-009), compress-before-drop.
+- **Repo:** contextpilot · **Files:** `budgeting/budgeter.py`
+- **Accept:** higher total value within budget than naive top-k on a fixture; invariants hold.
+- **Tests:** value-density selection; budget respected; required kept. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-016).
+
+## CP-023 — Optimizer rewire (neural pipeline) + richer audit
+- **Status:** awaiting-approval
+- **Description:** Rewire `ContextPilot.optimize()` to the full neural order (normalize →
+  semantic+keyword → hybrid → rerank → semantic dedup → compression → MMR → budget →
+  prompt → audit). Audit gains `models_used`, per-block `rerank_score`, multi-signal
+  reasons. Strategy presets (speed/balanced/quality/max_compression) become real.
+- **Repo:** contextpilot · **Files:** `core/optimizer.py`, `core/result.py`, `core/config.py`, `audit/audit_report.py`
+- **Accept:** end-to-end with fake models; audit reconciles; presets differ measurably.
+- **Tests:** end-to-end neural pipeline (fakes); audit fields. **Docs:** PROJECT_MEMORY; LIBRARY_API rewrite.
+
+## CP-024 — V2 hardening & benchmarks
+- **Status:** awaiting-approval
+- **Description:** Opt-in integration tests with real BGE models; baseline (V1-style) vs
+  neural benchmark on a fixture; mypy/ruff clean; finalize docs; tag `v0.2.0`.
+- **Repo:** contextpilot · **Files:** tests, benchmark script, docs
+- **Accept:** integration green when models present; benchmark shows neural uplift; V2 DoD met.
+- **Tests:** full suite + integration. **Docs:** PROJECT_MEMORY, ROADMAP, LIBRARY_API, V2_DESIGN.

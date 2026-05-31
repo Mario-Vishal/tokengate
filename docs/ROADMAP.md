@@ -59,11 +59,34 @@ Phases are sequential. A phase is "done" only when its code **and** tests pass a
 
 ---
 
-## V2 (do not start until V1 is stable)
-- Semantic / near-duplicate deduplication.
-- Reranker adapter (e.g. BGE) at the ranking stage.
-- Structured LLM compression schema (JSON via an LLM).
-- Strategy presets: `speed`, `balanced`, `quality`, `max_compression`.
-- Cache-aware prompt sectioning (beyond simple ordering).
-- Optimization cache.
-- Benchmark utilities + reproducible benchmark suite.
+## V2 — Neural context optimization engine (approved 2026-05-31)
+
+> Direction approved; **detailed task breakdown (CP-014+) awaiting user sign-off before
+> any code.** Full design: [`V2_DESIGN.md`](V2_DESIGN.md). ADR-010..016. Neural is
+> required core — not optional. No generative LLM in the path (extractive only).
+
+Sequential phases (each: code + tests green + PROJECT_MEMORY updated):
+
+- **V2-P1 Environment & deps** — pin Python 3.12; add torch + sentence-transformers/
+  FlagEmbedding + numpy; uv 3.12 venv; verify installs. (CP-014)
+- **V2-P2 Model layer** — `EmbeddingModel`/`Reranker` protocols; default `BGEM3Embedder`
+  + `BGEReranker` (GPU-aware); fake models for tests. (CP-015)
+- **V2-P3 Vectors on blocks** — `ContextBlock.vector`; reuse-or-compute; dim validation.
+  (CP-016)
+- **V2-P4 Semantic + hybrid scoring** — cosine semantic scoring from vectors; expand
+  hybrid ranking (semantic, keyword, recency, source_priority, token_efficiency). (CP-017)
+- **V2-P5 Neural reranking** — cross-encoder rerank stage; `rerank_top_n`. (CP-018)
+- **V2-P6 Semantic deduplication** — embedding-cosine dedup, best-representative. (CP-019)
+- **V2-P7 Embedding extractive compression** — sentence embeddings + lexical/entity/
+  heading scoring to a token target. (CP-020)
+- **V2-P8 MMR diversity selection** — λ relevance vs redundancy. (CP-021)
+- **V2-P9 Value-per-token budgeting** — knapsack-style "best set under budget". (CP-022)
+- **V2-P10 Optimizer rewire + audit** — full neural pipeline end-to-end; audit gains
+  `models_used`, `rerank_score`, multi-signal reasons; strategy presets become real. (CP-023)
+- **V2-P11 Hardening & benchmarks** — integration tests with real models; baseline-vs-
+  neural benchmark; docs; tag `v0.2.0`. (CP-024)
+
+### Deferred beyond V2
+- BGE-M3 sparse + multi-vector (ColBERT) hybrid scoring.
+- Optimization cache; cache-aware prompt sectioning.
+- Qdrant/TurboVec (retrieval lives in the app, not the library).
