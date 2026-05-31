@@ -160,6 +160,19 @@ Format: ID · Date · Status · Context · Decision · Consequences.
 - **Consequences:** Richer evidence sets; one more configurable knob; needs vectors for
   the similarity term.
 
+### ADR-017 — GPU torch via CUDA 12.8 build (RTX 5070 Ti / Blackwell)
+- **Date:** 2026-05-31 · **Status:** Accepted
+- **Context:** The dev machine has an NVIDIA RTX 5070 Ti Laptop GPU (12GB, Blackwell,
+  compute sm_120, driver 596.36 / CUDA 13.2). The default PyPI torch is a CPU build and
+  won't use the GPU; Blackwell needs a CUDA 12.8+ build.
+- **Decision:** Install torch from the PyTorch **cu128** index via uv
+  (`[[tool.uv.index]]` + `[tool.uv.sources]`). Models run on GPU when available; torch
+  falls back to CPU automatically when CUDA is absent (GPU is preferred, not required).
+- **Consequences:** Larger download (~2.6GB) and the lockfile pins a `+cu128` build. The
+  cu128 index's latest is torch **2.11.0+cu128** (vs 2.12 on CPU PyPI) — acceptable.
+  Verified: `cuda.is_available()` True, capability (12,0), GPU matmul runs. Beacon's
+  embedding/OCR/Ollama GPU usage should align with this (CUDA 12.8 build) too.
+
 ### ADR-016 — Token-aware budgeting as value-per-token optimization
 - **Date:** 2026-05-31 · **Status:** Accepted · **Builds on:** ADR-009
 - **Decision:** Budgeting picks the best *set* under the token budget (knapsack-style,

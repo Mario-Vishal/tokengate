@@ -40,6 +40,17 @@ dev = [
     "mypy>=1.10",
 ]
 
+# --- GPU torch (ADR-017) ---
+# RTX 5070 Ti is Blackwell (sm_120) -> needs a CUDA 12.8+ build. Pull torch from the
+# PyTorch CUDA 12.8 index. Runtime falls back to CPU automatically when CUDA is absent.
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

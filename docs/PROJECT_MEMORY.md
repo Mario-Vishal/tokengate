@@ -119,8 +119,13 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
   transformers 5.9, numpy 2.4.6 (also pulled scikit-learn/scipy). **torch is the CPU
   build** — GPU optional; for CUDA on this Windows box we'd install the CUDA torch wheel
   later (not needed for correctness).
-- V1 suite still green on 3.12; added `tests/test_env.py`. **117 passed, 1 skipped.**
-- Resolves PD-3: **Beacon backend should also pin Python 3.12** for LanceDB/BGE/OCR wheels.
+- V1 suite still green on 3.12; added `tests/test_env.py`.
+- **GPU (ADR-017):** dev box has **RTX 5070 Ti Laptop (12GB, Blackwell sm_120, driver
+  596.36 / CUDA 13.2)**. Switched torch to the **cu128** index via uv sources →
+  **torch 2.11.0+cu128**. Verified `cuda.is_available()` True, capability (12,0), real
+  GPU matmul runs. CPU fallback automatic when CUDA absent. **119 passed, 1 skipped.**
+- Resolves PD-3: **Beacon backend should also pin Python 3.12** and prefer a CUDA 12.8
+  build for GPU paths (embeddings/OCR), with CPU fallback.
 - Git history in both repos rewritten to drop the Claude co-author trailer; force-pushed.
   Future commits omit it (see [[no-claude-coauthor]]).
 - Next: CP-015 (model layer — protocols + BGE defaults + fakes).
