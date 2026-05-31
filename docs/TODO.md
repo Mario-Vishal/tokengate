@@ -258,7 +258,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Tests:** value-density selection; budget respected; required kept. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-016).
 
 ## CP-023 — Optimizer rewire (neural pipeline) + richer audit
-- **Status:** awaiting-approval
+- **Status:** done — full neural pipeline wired; models_used + rerank_score in audit; 4 real strategy presets
 - **Description:** Rewire `ContextPilot.optimize()` to the full neural order (normalize →
   semantic+keyword → hybrid → rerank → semantic dedup → compression → MMR → budget →
   prompt → audit). Audit gains `models_used`, per-block `rerank_score`, multi-signal

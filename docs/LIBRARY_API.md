@@ -1,7 +1,27 @@
 # ContextPilot — LIBRARY API (reference)
 
-> **Status: implemented (V1).** Verified against the code as of CP-012/CP-013 — the
-> end-to-end example below runs. Update this doc alongside any API change.
+> **Status: implemented.** V1 surface below is current. **V2 (neural engine)** additions
+> are summarized in the box right under here; full design in `V2_DESIGN.md`.
+
+> ### V2 neural engine (CP-014 … CP-023)
+> ContextPilot is now a neural engine (ADR-010). Key API additions:
+> - `ContextPilot(..., embedding_model=None, reranker=None)` — required models with lazy
+>   **BGE-M3** / **bge-reranker-v2-m3** defaults; inject your own (or fakes) to override.
+>   Construction is cheap; weights download on first `optimize()`.
+> - `ContextBlock` gains `vector` (reused if present, else computed) and `rerank_score`.
+> - `OptimizerConfig` gains multi-signal weights (`semantic/keyword/recency/
+>   source_priority/token_efficiency_weight`), `source_priorities`, `rerank_top_n`,
+>   `enable_semantic_dedup` + `semantic_dedup_threshold`, `enable_mmr` + `mmr_lambda`.
+> - Strategy presets are real: `speed` / `balanced` / `quality` / `max_compression`.
+> - `AuditReport.models_used` and per-`BlockDecision` `rerank_score`.
+> - Pipeline: exact dedup → embed → semantic+hybrid → rerank → semantic dedup → MMR →
+>   value/token budget (extractive compress-to-fit) → prompt → audit. No generative LLM.
+
+> **Note on `tokens_saved`.** Savings are `total_candidate_tokens - final_prompt_tokens`.
+> If the candidate context comfortably fits the budget, nothing is dropped and the
+> small prompt scaffolding (`Context:`, `[1]`, `Question:`) can make `tokens_saved`
+> slightly **negative** — that is honest, not a bug. Savings go positive once the
+> candidate context exceeds the budget and blocks are compressed/dropped.
 
 > **Note on `tokens_saved`.** Savings are `total_candidate_tokens - final_prompt_tokens`.
 > If the candidate context comfortably fits the budget, nothing is dropped and the

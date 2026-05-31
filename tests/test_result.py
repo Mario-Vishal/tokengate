@@ -77,6 +77,7 @@ def test_audit_report_to_dict_roundtrip_shape() -> None:
         "compressed_count",
         "dropped_count",
         "decisions",
+        "models_used",
     }
 
 

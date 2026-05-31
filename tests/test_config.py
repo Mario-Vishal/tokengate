@@ -40,7 +40,12 @@ def test_non_positive_budget_rejected(bad: int) -> None:
 
 def test_unknown_strategy_rejected() -> None:
     with pytest.raises(ConfigurationError):
-        OptimizerConfig(strategy="quality")  # V2, not yet supported
+        OptimizerConfig(strategy="nonsense-strategy")
+
+
+def test_known_strategies_accepted() -> None:
+    for s in ("speed", "balanced", "quality", "max_compression"):
+        assert OptimizerConfig(strategy=s).strategy == s
 
 
 def test_negative_weight_rejected() -> None:
@@ -85,4 +90,4 @@ def test_for_strategy_balanced_with_override() -> None:
 
 def test_for_strategy_unknown_rejected() -> None:
     with pytest.raises(ConfigurationError):
-        OptimizerConfig.for_strategy("speed")
+        OptimizerConfig.for_strategy("nonsense-strategy")

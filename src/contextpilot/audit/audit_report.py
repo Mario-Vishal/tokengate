@@ -29,6 +29,7 @@ def build_audit_report(
     total_candidate_tokens: int,
     final_prompt_tokens: int,
     decisions: list[BlockDecision],
+    models_used: dict[str, str | None] | None = None,
 ) -> AuditReport:
     """Assemble a complete :class:`AuditReport`.
 
@@ -52,6 +53,7 @@ def build_audit_report(
         compressed_count=compressed,
         dropped_count=dropped,
         decisions=list(decisions),
+        models_used=dict(models_used) if models_used else {},
     )
 
 

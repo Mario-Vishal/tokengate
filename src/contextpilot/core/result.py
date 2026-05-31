@@ -30,6 +30,7 @@ class BlockDecision:
     original_tokens: int
     final_tokens: int
     score: float | None = None
+    rerank_score: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +40,7 @@ class BlockDecision:
             "original_tokens": self.original_tokens,
             "final_tokens": self.final_tokens,
             "score": self.score,
+            "rerank_score": self.rerank_score,
         }
 
 
@@ -55,6 +57,9 @@ class AuditReport:
     compressed_count: int
     dropped_count: int
     decisions: list[BlockDecision] = field(default_factory=list)
+    # Which models drove the run, e.g. {"embedding_model": "...", "reranker": "...",
+    # "final_llm": None}. final_llm is filled in by the app, not the library.
+    models_used: dict[str, str | None] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,6 +72,7 @@ class AuditReport:
             "compressed_count": self.compressed_count,
             "dropped_count": self.dropped_count,
             "decisions": [d.to_dict() for d in self.decisions],
+            "models_used": dict(self.models_used),
         }
 
 

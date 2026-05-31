@@ -111,6 +111,19 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-023 done: optimizer rewired to full neural pipeline
+- `ContextPilot` now takes `embedding_model` + `reranker` (lazy BGE defaults; injected
+  fakes in tests). `optimize()` pipeline: exact dedup → embed(reuse) → semantic+hybrid
+  scoring → neural rerank(top_n) → semantic dedup → MMR → value/token budget(compress) →
+  prompt → audit. Each candidate gets exactly one decision (drops recorded at every
+  stage: exact, rerank-cutoff, semantic-dup, budget).
+- Audit enriched: `AuditReport.models_used` + per-decision `rerank_score` (threaded
+  through the budgeter too).
+- Strategy presets made real: **speed / balanced / quality / max_compression** with
+  distinct knobs (rerank depth, dedup/compression/MMR toggles, lambda, margin).
+- Rewrote `test_optimizer.py` with fakes; fixed config/result tests. ruff+mypy(strict)
+  clean; **178 passed, 2 skipped**. Next: CP-024 (real-model integration + benchmark + tag v0.2.0).
+
 ### 2026-05-31 — CP-022 done: value-per-token budgeting
 - `budgeter.py`: optional blocks now selected by **value-density** (`final_score/tokens`,
   ADR-016) — process densest first, compress-to-fit, drop; required reserved first

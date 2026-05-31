@@ -94,7 +94,8 @@ def budget_blocks(
             DECISION_INCLUDED,
             block,
             BlockDecision(block.block_id, DECISION_INCLUDED, "required block",
-                          tokens, tokens, block.final_score),
+                          tokens, tokens, block.final_score,
+                          rerank_score=block.rerank_score),
         )
 
     # (2) Fit optional blocks by value-per-token ("best set under budget", ADR-016):
@@ -117,7 +118,7 @@ def budget_blocks(
                 DECISION_INCLUDED,
                 block,
                 BlockDecision(block.block_id, DECISION_INCLUDED, "fits within budget",
-                              tokens, tokens, score),
+                              tokens, tokens, score, rerank_score=block.rerank_score),
             )
             continue
 
@@ -138,7 +139,8 @@ def budget_blocks(
                     compressed,
                     BlockDecision(block.block_id, DECISION_COMPRESSED,
                                   "compressed to fit remaining budget",
-                                  tokens, new_tokens, score),
+                                  tokens, new_tokens, score,
+                                  rerank_score=block.rerank_score),
                 )
                 continue
 
@@ -146,7 +148,8 @@ def budget_blocks(
             DECISION_DROPPED,
             None,
             BlockDecision(block.block_id, DECISION_DROPPED,
-                          "exceeds remaining token budget", tokens, 0, score),
+                          "exceeds remaining token budget", tokens, 0, score,
+                          rerank_score=block.rerank_score),
         )
 
     # (3) Emit in ranked order so prompt_blocks/decisions are deterministic.

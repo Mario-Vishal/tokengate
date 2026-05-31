@@ -16,9 +16,13 @@ from contextpilot.utils.errors import ConfigurationError
 if TYPE_CHECKING:  # avoid import cycle; TokenCounter lands in CP-006
     from contextpilot.budgeting.token_counter import TokenCounter
 
+STRATEGY_SPEED = "speed"
 STRATEGY_BALANCED = "balanced"
-# Reserved for V2 (accepted by name once implemented).
-_V1_STRATEGIES = frozenset({STRATEGY_BALANCED})
+STRATEGY_QUALITY = "quality"
+STRATEGY_MAX_COMPRESSION = "max_compression"
+_STRATEGIES = frozenset(
+    {STRATEGY_SPEED, STRATEGY_BALANCED, STRATEGY_QUALITY, STRATEGY_MAX_COMPRESSION}
+)
 
 
 @dataclass
@@ -53,10 +57,9 @@ class OptimizerConfig:
     def __post_init__(self) -> None:
         if self.max_prompt_tokens <= 0:
             raise ConfigurationError("max_prompt_tokens must be a positive integer")
-        if self.strategy not in _V1_STRATEGIES:
+        if self.strategy not in _STRATEGIES:
             raise ConfigurationError(
-                f"unknown strategy {self.strategy!r}; "
-                f"supported in V1: {sorted(_V1_STRATEGIES)}"
+                f"unknown strategy {self.strategy!r}; supported: {sorted(_STRATEGIES)}"
             )
         if any(w < 0 for w in self._weights.values()):
             raise ConfigurationError("scoring weights must be non-negative")
@@ -92,32 +95,63 @@ class OptimizerConfig:
     def for_strategy(
         cls, strategy: str = STRATEGY_BALANCED, **overrides: object
     ) -> OptimizerConfig:
-        """Build a config for a named strategy with optional field overrides.
-
-        In V1 only ``"balanced"`` is available; the defaults already encode it.
-        """
+        """Build a config for a named strategy with optional field overrides."""
         preset = _PRESETS.get(strategy)
         if preset is None:
             raise ConfigurationError(
-                f"unknown strategy {strategy!r}; supported in V1: {sorted(_PRESETS)}"
+                f"unknown strategy {strategy!r}; supported: {sorted(_PRESETS)}"
             )
         return cls(**{**preset, **overrides})  # type: ignore[arg-type]
 
 
-# Per-strategy default fields. V2 presets get added here without API changes.
+# Per-strategy presets. Each meaningfully changes the pipeline (CP-023).
 _PRESETS: dict[str, dict[str, object]] = {
+    # Fewest stages for lowest latency: shallow rerank, no semantic dedup / MMR /
+    # compression. Leans on lexical + semantic scoring.
+    STRATEGY_SPEED: {
+        "strategy": STRATEGY_SPEED,
+        "rerank_top_n": 5,
+        "enable_semantic_dedup": False,
+        "enable_compression": False,
+        "enable_mmr": False,
+    },
+    # Default all-round profile.
     STRATEGY_BALANCED: {
         "strategy": STRATEGY_BALANCED,
-        "semantic_weight": 0.45,
-        "keyword_weight": 0.25,
-        "recency_weight": 0.10,
-        "source_priority_weight": 0.10,
-        "token_efficiency_weight": 0.10,
-        "enable_dedup": True,
+        "rerank_top_n": 15,
+        "enable_semantic_dedup": True,
         "enable_compression": True,
-        "safety_margin": 0.05,
+        "enable_mmr": True,
+    },
+    # Deepest rerank, semantic-weighted, full diversity — best answers, slower.
+    STRATEGY_QUALITY: {
+        "strategy": STRATEGY_QUALITY,
+        "semantic_weight": 0.55,
+        "keyword_weight": 0.20,
+        "rerank_top_n": 30,
+        "enable_semantic_dedup": True,
+        "enable_compression": True,
+        "enable_mmr": True,
+        "mmr_lambda": 0.7,
+    },
+    # Squeeze the most into the budget: aggressive compression + larger safety margin +
+    # more diversity so varied evidence is compressed in.
+    STRATEGY_MAX_COMPRESSION: {
+        "strategy": STRATEGY_MAX_COMPRESSION,
+        "rerank_top_n": 20,
+        "enable_semantic_dedup": True,
+        "enable_compression": True,
+        "enable_mmr": True,
+        "mmr_lambda": 0.4,
+        "safety_margin": 0.10,
     },
 }
 
 
-__all__ = ["OptimizerConfig", "STRATEGY_BALANCED"]
+__all__ = [
+    "OptimizerConfig",
+    "STRATEGY_SPEED",
+    "STRATEGY_BALANCED",
+    "STRATEGY_QUALITY",
+    "STRATEGY_MAX_COMPRESSION",
+]
