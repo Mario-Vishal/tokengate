@@ -37,6 +37,8 @@ class OptimizerConfig:
     source_priorities: dict[str, float] = field(default_factory=dict)
     enable_dedup: bool = True
     enable_compression: bool = True
+    # Keep the top-N blocks after neural reranking before later stages (None = keep all).
+    rerank_top_n: int | None = 15
     # Fraction of the budget held back as headroom against tokenizer estimation drift.
     safety_margin: float = 0.05
     # Optional injected counter; the optimizer falls back to the heuristic default.
@@ -56,6 +58,8 @@ class OptimizerConfig:
             raise ConfigurationError("at least one scoring weight must be > 0")
         if not all(0.0 <= p <= 1.0 for p in self.source_priorities.values()):
             raise ConfigurationError("source_priorities values must be in [0.0, 1.0]")
+        if self.rerank_top_n is not None and self.rerank_top_n <= 0:
+            raise ConfigurationError("rerank_top_n must be a positive integer or None")
         if not (0.0 <= self.safety_margin < 1.0):
             raise ConfigurationError("safety_margin must be in [0.0, 1.0)")
 

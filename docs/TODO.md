@@ -218,7 +218,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
   scoring + weighting. **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-018 — Neural reranking stage
-- **Status:** awaiting-approval
+- **Status:** done — cross-encoder rerank stage, rerank_score field, rerank_top_n cutoff + tests
 - **Description:** `ranking/reranker_stage.py` — run cross-encoder over (query, chunk);
   set `rerank_score`; keep top `rerank_top_n`.
 - **Repo:** contextpilot · **Files:** `ranking/reranker_stage.py`, `core/config.py`

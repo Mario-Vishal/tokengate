@@ -111,6 +111,16 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-018 done: neural reranking stage
+- `ContextBlock.rerank_score` field (raw cross-encoder score, unbounded, not range-
+  validated; in `to_dict`).
+- `ranking/reranker_stage.py`: `rerank_blocks(query, blocks, reranker, *, top_n)` scores
+  (query, content) pairs, sets `rerank_score`, sorts desc, keeps `top_n` (None=all).
+- `config.rerank_top_n` (default 15; positive-int-or-None validation).
+- Tests `test_reranker.py` (FakeReranker) + config test. Optimizer wiring deferred to
+  CP-023 (needs the model). ruff+mypy(strict) clean; **161 passed, 2 skipped**.
+- Next: CP-019 (semantic deduplication).
+
 ### 2026-05-31 — CP-017 done: semantic scoring + multi-signal hybrid ranking
 - `ranking/semantic_scorer.py`: `cosine_scores` (normalized vectors → dot, clamped [0,1])
   + `apply_semantic_scores` (sets `block.semantic_score`).

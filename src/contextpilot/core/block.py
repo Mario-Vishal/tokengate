@@ -62,6 +62,8 @@ class ContextBlock:
     semantic_score: float | None = None
     keyword_score: float | None = None
     final_score: float | None = None
+    # Cross-encoder reranker score (raw, unbounded — not constrained to [0,1]).
+    rerank_score: float | None = None
     required: bool = False
     cacheable: bool = False
     compressible: bool = True
@@ -106,6 +108,7 @@ class ContextBlock:
             "semantic_score": self.semantic_score,
             "keyword_score": self.keyword_score,
             "final_score": self.final_score,
+            "rerank_score": self.rerank_score,
             "required": self.required,
             "cacheable": self.cacheable,
             "compressible": self.compressible,

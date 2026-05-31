@@ -60,6 +60,13 @@ def test_safety_margin_bounds(bad: float) -> None:
         OptimizerConfig(safety_margin=bad)
 
 
+def test_rerank_top_n_validation() -> None:
+    assert OptimizerConfig(rerank_top_n=None).rerank_top_n is None
+    assert OptimizerConfig(rerank_top_n=10).rerank_top_n == 10
+    with pytest.raises(ConfigurationError):
+        OptimizerConfig(rerank_top_n=0)
+
+
 def test_effective_budget_applies_margin() -> None:
     cfg = OptimizerConfig(max_prompt_tokens=1000, safety_margin=0.1)
     assert cfg.effective_budget == 900
