@@ -107,14 +107,16 @@ Pairwise cosine over block vectors; if ≥ threshold, keep the best representati
 (higher rerank/score, shorter, newer, better source, richer metadata) and drop the rest
 with recorded reasons. Major token saver.
 
-### 7 Extractive compression (no LLM)
+### 7 Extractive compression (no LLM, relevance-driven — ADR-019)
 Sentence/paragraph scoring:
 ```
-sentence_score = semantic_sim(query, sentence) + keyword_overlap
-               + entity_match_bonus + heading_bonus − redundancy_penalty
+sentence_score = w_sem·semantic_sim(query, sentence) + w_kw·keyword_overlap
+               + entity_bonus + heading_bonus
 ```
-Keep highest-value original sentences until `target_tokens`. Records original/compressed
-tokens, `compression_method="embedding_extractive"`, and `source_block_id`.
+**No token target.** Keep every sentence scoring ≥ `keep_ratio × best_sentence_score`
+(drop boilerplate); output size is content-determined. The token budget is a hard bound
+only: if the relevance-pruned block still doesn't fit, the budgeter **drops** it rather
+than truncating relevant content. Records `compression_method="embedding_extractive"`.
 
 ### 8 MMR diversity selection
 `mmr = λ·relevance(query) − (1−λ)·max_sim(already_selected)` (λ configurable). Prevents

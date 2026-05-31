@@ -116,6 +116,20 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-026 done: relevance-driven compression, no token target (ADR-019)
+- User: "in real life there should not be any target and forceful compression." Reworked
+  `compress_text`/`compress_block`: keep sentences scoring ≥ `keep_ratio × best`
+  (drop boilerplate), **no `target_tokens`**. Size is content-determined; all-relevant
+  block kept whole; single-sentence unchanged.
+- Budgeter: on overflow, relevance-compress; keep only if pruned block fits, else **drop
+  the whole block** (never truncate relevant content). `compression_keep_ratio` config
+  (0.5; validated). Wired through optimizer.
+- Verified on GPU 20-block demo: 75.3% saved; concise relevant files included; the giant
+  redundant JD **dropped** (its relevant part exceeded leftover budget; info still covered
+  by the JD summary blocks). Known minor refinement: compression doesn't yet dedup
+  identical repeated sentences within a block.
+- Rewrote compression tests. ruff+mypy(strict) clean; **182 passed, 4 skipped**.
+
 ### 2026-05-31 — CP-025 done: reranker drives selection + relevance floor (ADR-018)
 - A 20-block real-model run exposed that `rerank_score` was only used for the cutoff, so
   cheap noise outranked the relevant JD (dropped instead of compressed). Fix:

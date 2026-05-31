@@ -41,6 +41,9 @@ class OptimizerConfig:
     source_priorities: dict[str, float] = field(default_factory=dict)
     enable_dedup: bool = True
     enable_compression: bool = True
+    # Relevance-driven compression: keep sentences scoring >= ratio * best sentence
+    # (drop boilerplate). No token target (ADR-019). Higher = more aggressive.
+    compression_keep_ratio: float = 0.5
     # Embedding-cosine dedup: blocks at/above this similarity are treated as duplicates.
     enable_semantic_dedup: bool = True
     semantic_dedup_threshold: float = 0.9
@@ -82,6 +85,8 @@ class OptimizerConfig:
             raise ConfigurationError("rerank_weight must be in [0.0, 1.0]")
         if not (0.0 <= self.relevance_floor <= 1.0):
             raise ConfigurationError("relevance_floor must be in [0.0, 1.0]")
+        if not (0.0 < self.compression_keep_ratio <= 1.0):
+            raise ConfigurationError("compression_keep_ratio must be in (0.0, 1.0]")
         if not (0.0 <= self.safety_margin < 1.0):
             raise ConfigurationError("safety_margin must be in [0.0, 1.0)")
 

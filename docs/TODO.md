@@ -277,6 +277,20 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 
 ## CP-025 — Reranker drives selection + relevance floor (quality fix)
 - **Status:** done — rerank blended into final_score; relevance floor; verified on 20-block demo (75.8% saved, junk dropped, JD compressed)
+
+## CP-026 — Relevance-driven compression (no token target)
+- **Status:** done — keep_ratio gate (drop boilerplate, keep relevant); no target; drop block if pruned part still doesn't fit; verified on GPU
+- **Description:** Compression should be driven by *relevance*, not a token target.
+  Keep sentences at/above a relevance gate (relative to the block's best sentence), drop
+  boilerplate/off-topic — output size is content-determined. The token budget is a hard
+  bound only: if the relevance-pruned block still doesn't fit, **drop it** (never trim
+  relevant content to a number). (ADR-019)
+- **Repo:** contextpilot · **Files:** `compression/extractive.py`, `budgeting/budgeter.py`,
+  `core/config.py`, `core/optimizer.py`
+- **Accept:** boilerplate-heavy block keeps only relevant sentences regardless of budget;
+  all-relevant block is kept whole; oversized-after-pruning block is dropped, not trimmed.
+- **Tests:** rewrite compression tests (no target); budgeter compress path; suite green.
+- **Docs:** PROJECT_MEMORY, DECISIONS (ADR-019), LIBRARY_API, V2_DESIGN.
 - **Description:** A 20-block real-model run showed the reranker's signal was used only
   for the top-N cutoff, so cheap low-relevance blocks crowded out the relevant (large)
   JD, which got dropped instead of compressed. Fix: (a) blend normalized `rerank_score`

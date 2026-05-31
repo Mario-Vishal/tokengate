@@ -1,4 +1,4 @@
-"""CP-009/CP-020 tests: embedding-based extractive compression (with FakeEmbeddingModel)."""
+"""CP-026 tests: relevance-driven extractive compression (no token target)."""
 
 from __future__ import annotations
 
@@ -12,13 +12,19 @@ from contextpilot.compression.extractive import (
 from contextpilot.models import FakeEmbeddingModel
 
 _COUNTER = HeuristicTokenCounter()
-_MODEL = FakeEmbeddingModel(dim=128)
+_MODEL = FakeEmbeddingModel(dim=256)
 
+# One clearly-relevant sentence among off-topic boilerplate.
 _DOC = (
-    "The quarterly budget report covers expenses. "
-    "Our job search strategy focuses on resume keywords and networking. "
+    "Our job search strategy focuses on resume keywords and recruiter networking. "
     "The cafeteria menu changes on Fridays. "
-    "Remember to water the office plants weekly."
+    "Remember to water the office plants weekly. "
+    "Equal opportunity employer statement and standard benefits boilerplate."
+)
+_ALL_RELEVANT = (
+    "Send the updated resume to the recruiter. "
+    "Schedule the recruiter screening call. "
+    "Prepare resume talking points for the recruiter."
 )
 
 
@@ -27,51 +33,56 @@ def test_split_sentences() -> None:
     assert split_sentences("") == []
 
 
-def test_score_sentences_returns_scores_and_vectors() -> None:
+def test_score_sentences_shapes() -> None:
     sents = split_sentences(_DOC)
-    scores, vecs = score_sentences("job search resume", sents, _MODEL)
+    scores, vecs = score_sentences("job search resume recruiter", sents, _MODEL)
     assert len(scores) == len(sents)
     assert vecs.shape == (len(sents), _MODEL.dim)
-    # the job-search sentence should score highest
-    assert scores[1] == max(scores)
 
 
-def test_compress_text_stays_under_target_and_keeps_relevant() -> None:
-    out = compress_text(_DOC, "job search resume", _MODEL, target_tokens=12, counter=_COUNTER)
-    assert _COUNTER.count(out) <= _COUNTER.count(_DOC)
+def test_drops_boilerplate_keeps_relevant() -> None:
+    out = compress_text(_DOC, "job search resume recruiter networking", _MODEL)
     assert "job search strategy" in out
+    assert "cafeteria" not in out and "plants" not in out
+    assert _COUNTER.count(out) < _COUNTER.count(_DOC)
 
 
-def test_compress_never_empties() -> None:
-    out = compress_text(_DOC, "xyzzy no match", _MODEL, target_tokens=1, counter=_COUNTER)
-    assert out.strip() != ""
+def test_all_relevant_block_kept_whole() -> None:
+    # every sentence is on-topic -> nothing should be dropped (no forced target)
+    out = compress_text(_ALL_RELEVANT, "resume recruiter call", _MODEL, keep_ratio=0.5)
+    assert out == _ALL_RELEVANT
 
 
-def test_compress_returns_original_when_already_fits() -> None:
-    assert compress_text(_DOC, "job", _MODEL, target_tokens=10_000, counter=_COUNTER) == _DOC
+def test_single_sentence_unchanged() -> None:
+    one = "This is a single sentence with no internal boundaries to split on"
+    assert compress_text(one, "single", _MODEL) == one
 
 
-def test_compress_single_sentence_unchanged() -> None:
-    one = "This is a single long sentence that cannot be split any further at all"
-    assert compress_text(one, "single", _MODEL, target_tokens=2, counter=_COUNTER) == one
+def test_no_token_target_param() -> None:
+    # compress_text must not require a target; this is the whole point of CP-026
+    import inspect
+
+    params = inspect.signature(compress_text).parameters
+    assert "target_tokens" not in params
+    assert "keep_ratio" in params
 
 
-def test_compress_block_respects_non_compressible() -> None:
+def test_compress_block_non_compressible_unchanged() -> None:
     block = ContextBlock(content=_DOC, compressible=False)
-    assert compress_block(block, "job search", _MODEL, target_tokens=5, counter=_COUNTER) is block
+    assert compress_block(block, "job search", _MODEL) is block
 
 
-def test_compress_block_smaller_copy_with_metadata() -> None:
+def test_compress_block_metadata_and_copy() -> None:
     block = ContextBlock(content=_DOC, block_id="orig")
-    result = compress_block(block, "job search resume", _MODEL, target_tokens=12, counter=_COUNTER)
+    result = compress_block(block, "job search resume recruiter", _MODEL, counter=_COUNTER)
     assert result is not block
-    assert result.token_count is not None and result.token_count <= _COUNTER.count(_DOC)
     assert result.metadata["compressed"] is True
     assert result.metadata["compression_method"] == "embedding_extractive"
     assert result.metadata["original_token_count"] == _COUNTER.count(_DOC)
+    assert result.token_count == _COUNTER.count(result.content)
     assert block.content == _DOC  # original untouched
 
 
-def test_compress_block_unchanged_when_fits() -> None:
-    block = ContextBlock(content=_DOC)
-    assert compress_block(block, "job", _MODEL, target_tokens=10_000, counter=_COUNTER) is block
+def test_compress_block_unchanged_when_all_relevant() -> None:
+    block = ContextBlock(content=_ALL_RELEVANT)
+    assert compress_block(block, "resume recruiter call", _MODEL) is block

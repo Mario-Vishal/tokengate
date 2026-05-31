@@ -8,9 +8,10 @@ Decides each block's fate against the token budget:
   audit rather than silently dropped (ADR-009).
 - **optional** blocks are taken by **value-per-token** (``final_score / tokens``), not
   raw rank, so a small high-value block beats a large slightly-more-relevant one
-  ("best set under budget", ADR-016). One that doesn't fit is first *compressed into the
-  remaining space* (if enabled and compressible) and kept if that makes it fit, else
-  dropped.
+  ("best set under budget", ADR-016). One that doesn't fit is **relevance-compressed**
+  (boilerplate dropped, no token target — ADR-019); it's kept only if the pruned block
+  fits, otherwise the whole block is dropped (relevant content is never truncated to fit).
+- Below ``relevance_floor`` optional blocks are dropped before budgeting.
 
 Greedy continues after a drop — a smaller, denser block may still fit. Every block
 yields a :class:`BlockDecision` so the audit can explain the outcome. ``prompt_blocks``
@@ -67,6 +68,7 @@ def budget_blocks(
     enable_compression: bool = True,
     embedding_model: EmbeddingModel | None = None,
     relevance_floor: float = 0.0,
+    compression_keep_ratio: float = 0.5,
 ) -> BudgetOutcome:
     """Select blocks under ``budget_tokens`` (required reserved first, compress-to-fit).
 
@@ -139,6 +141,9 @@ def budget_blocks(
             )
             continue
 
+        # Relevance-driven compression (ADR-019): drop boilerplate; size is
+        # content-determined (no token target). Keep only if the pruned block fits;
+        # otherwise drop the whole block — never truncate relevant content to a number.
         if (
             enable_compression
             and embedding_model is not None
@@ -146,16 +151,17 @@ def budget_blocks(
             and remaining > 0
         ):
             compressed = compress_block(
-                block, query, embedding_model, target_tokens=remaining, counter=counter
+                block, query, embedding_model, counter=counter,
+                keep_ratio=compression_keep_ratio,
             )
             new_tokens = compressed.ensure_token_count(counter)
-            if compressed is not block and new_tokens <= remaining < tokens:
+            if compressed is not block and new_tokens <= remaining:
                 outcome.used_tokens += new_tokens
                 result[id(block)] = (
                     DECISION_COMPRESSED,
                     compressed,
                     BlockDecision(block.block_id, DECISION_COMPRESSED,
-                                  "compressed to fit remaining budget",
+                                  "compressed (boilerplate dropped) to fit budget",
                                   tokens, new_tokens, score,
                                   rerank_score=block.rerank_score),
                 )

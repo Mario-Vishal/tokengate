@@ -184,6 +184,7 @@ class ContextPilot:
                 enable_compression=cfg.enable_compression,
                 embedding_model=embedder,
                 relevance_floor=cfg.relevance_floor,
+                compression_keep_ratio=cfg.compression_keep_ratio,
             )
             decisions.extend(outcome.decisions)
             dropped.extend(outcome.dropped)

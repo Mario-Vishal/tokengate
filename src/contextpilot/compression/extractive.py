@@ -1,15 +1,18 @@
-"""Embedding-based extractive compression (CP-009, upgraded CP-020).
+"""Embedding-based extractive compression (CP-009, CP-020, relevance-driven CP-026).
 
-Shrinks a large block by keeping only its most query-relevant sentences — **never
-rewriting them and never calling a generative LLM** (ADR-014), so it can't hallucinate
-and adds no generation cost. Sentence scoring is neural + lexical:
+Shrinks a block by keeping only its query-relevant sentences and dropping boilerplate —
+**never rewriting them and never calling a generative LLM** (ADR-014). Sentence scoring is
+neural + lexical:
 
     sentence_score = w_sem·semantic_sim(query, sentence) + w_kw·keyword_overlap
                    + entity_bonus + heading_bonus
 
-Selection is greedy with a redundancy penalty (MMR-style) so the kept sentences are both
-relevant and non-repetitive. Because we only ever drop whole original sentences, the
-result is no larger than the input under a monotonic token counter.
+Compression is **relevance-driven, not target-driven** (ADR-019): a sentence is kept when
+its score is at least ``keep_ratio × best_sentence_score`` (a gate relative to the block's
+own best sentence). There is **no token target** — an all-relevant block keeps every
+sentence; a boilerplate-heavy block keeps only the on-topic ones. The caller (budgeter)
+treats the token budget as a hard bound: if the pruned block still doesn't fit, it is
+dropped, not truncated.
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ _DEFAULT_SEMANTIC_WEIGHT = 0.6
 _DEFAULT_KEYWORD_WEIGHT = 0.4
 _ENTITY_BONUS = 0.1
 _HEADING_BONUS = 0.1
-_DEFAULT_REDUNDANCY_WEIGHT = 0.3
+_DEFAULT_KEEP_RATIO = 0.5
 
 
 def split_sentences(text: str) -> list[str]:
@@ -94,59 +97,32 @@ def compress_text(
     query: str,
     model: EmbeddingModel,
     *,
-    target_tokens: int,
-    counter: TokenCounter | None = None,
-    redundancy_weight: float = _DEFAULT_REDUNDANCY_WEIGHT,
+    keep_ratio: float = _DEFAULT_KEEP_RATIO,
 ) -> str:
-    """Return a query-relevant excerpt of ``content`` at/under ``target_tokens``.
+    """Return ``content`` with low-relevance sentences dropped (relevance-driven).
 
-    Greedy MMR over sentences: each pick maximizes ``score − redundancy_weight·maxsim``
-    to already-selected sentences. Keeps original sentence order in the output, always
-    keeps ≥ 1 sentence, and returns the input unchanged if it already fits or has ≤ 1
-    sentence.
+    Keeps every sentence whose score is ≥ ``keep_ratio × best_sentence_score`` and drops
+    the rest, preserving original order. **No token target** (ADR-019): an all-relevant
+    block keeps all its sentences. Returns the input unchanged when it has ≤ 1 sentence,
+    when nothing scores above 0, or when no sentence would be dropped.
     """
-    counter = resolve_counter(counter)
-    if target_tokens <= 0 or counter.count(content) <= target_tokens:
-        return content
-
     sentences = split_sentences(content)
     if len(sentences) <= 1:
         return content
 
-    scores, vecs = score_sentences(query, sentences, model)
+    scores, _ = score_sentences(query, sentences, model)
+    best = max(scores)
+    if best <= 0:  # no relevance signal at all — keep everything (can't tell)
+        return content
 
-    selected: list[int] = []
-    selected_vecs: list[np.ndarray] = []
-    used = 0
-    remaining = set(range(len(sentences)))
+    threshold = keep_ratio * best
+    kept = [i for i, s in enumerate(scores) if s >= threshold]
+    if not kept:  # safety: keep the single best sentence
+        kept = [max(range(len(sentences)), key=lambda i: scores[i])]
+    if len(kept) == len(sentences):  # nothing to drop
+        return content
 
-    while remaining:
-        best_i = -1
-        best_eff = float("-inf")
-        for i in remaining:
-            redundancy = (
-                max(float(np.dot(vecs[i], sv)) for sv in selected_vecs)
-                if selected_vecs else 0.0
-            )
-            eff = scores[i] - redundancy_weight * redundancy
-            if eff > best_eff:
-                best_eff = eff
-                best_i = i
-
-        remaining.discard(best_i)
-        cost = counter.count(sentences[best_i])
-        if selected and used + cost > target_tokens:
-            continue
-        selected.append(best_i)
-        selected_vecs.append(vecs[best_i])
-        used += cost
-        if used >= target_tokens:
-            break
-
-    if not selected:  # safety: keep the single best-scoring sentence
-        selected = [max(range(len(sentences)), key=lambda i: scores[i])]
-
-    return " ".join(sentences[i] for i in sorted(selected))
+    return " ".join(sentences[i] for i in kept)  # kept is already in order
 
 
 def compress_block(
@@ -154,22 +130,21 @@ def compress_block(
     query: str,
     model: EmbeddingModel,
     *,
-    target_tokens: int,
     counter: TokenCounter | None = None,
+    keep_ratio: float = _DEFAULT_KEEP_RATIO,
 ) -> ContextBlock:
-    """Return a compressed copy of ``block`` (or the block unchanged).
+    """Return a relevance-compressed copy of ``block`` (or the block unchanged).
 
-    Non-compressible blocks are returned as-is. When content shrinks, a copy is returned
-    with a recomputed ``token_count`` and audit breadcrumbs in ``metadata``.
+    Non-compressible blocks are returned as-is. When boilerplate is dropped, a copy is
+    returned with a recomputed ``token_count`` and audit breadcrumbs in ``metadata``.
+    Size is content-determined — there is no token target.
     """
     counter = resolve_counter(counter)
     if not block.compressible:
         return block
 
     original_tokens = block.ensure_token_count(counter)
-    new_content = compress_text(
-        block.content, query, model, target_tokens=target_tokens, counter=counter
-    )
+    new_content = compress_text(block.content, query, model, keep_ratio=keep_ratio)
     if new_content == block.content:
         return block
 

@@ -15,7 +15,10 @@
 > - Strategy presets are real: `speed` / `balanced` / `quality` / `max_compression`.
 > - `AuditReport.models_used` and per-`BlockDecision` `rerank_score`.
 > - Pipeline: exact dedup → embed → semantic+hybrid → rerank → semantic dedup → MMR →
->   value/token budget (extractive compress-to-fit) → prompt → audit. No generative LLM.
+>   value/token budget → prompt → audit. No generative LLM.
+> - **Compression is relevance-driven (ADR-019), not target-driven:** it drops boilerplate
+>   (keeps sentences ≥ `compression_keep_ratio × best`); there is no token target. If a
+>   relevance-pruned block still doesn't fit the budget it is dropped, not truncated.
 
 > **Note on `tokens_saved`.** Savings are `total_candidate_tokens - final_prompt_tokens`.
 > If the candidate context comfortably fits the budget, nothing is dropped and the

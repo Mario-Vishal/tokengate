@@ -190,6 +190,23 @@ Format: ID · Date · Status · Context · Decision · Consequences.
   lowest; default is modest and per-preset (speed 0.2, quality 0.10). Verified on the
   20-block demo: relevant JD compressed+included, receipts/menus/boilerplate dropped.
 
+### ADR-019 — Compression is relevance-driven, not target-driven
+- **Date:** 2026-05-31 · **Status:** Accepted · **Supersedes part of:** ADR-014 mechanics
+- **Context:** Compression originally trimmed a block down to the *remaining token budget*
+  (a target). The user noted this is artificial — cutting relevant content to hit a number
+  is wrong; compression should remove *irrelevant* content and let the size fall out of
+  what's relevant.
+- **Decision:** Extractive compression keeps sentences whose score is ≥
+  ``compression_keep_ratio × best_sentence_score`` (relative to the block's own best
+  sentence) and drops the rest — **no token target**. An all-relevant block keeps all its
+  sentences; a boilerplate-heavy block keeps only the on-topic ones. The token budget is a
+  **hard bound only**: if the relevance-pruned block still exceeds remaining budget, the
+  block is **dropped** (never truncated to fit). Still extractive, still no LLM (ADR-014).
+- **Consequences:** Compression output is content-determined and model/length-robust
+  (relative gate, not an absolute cosine threshold). Some large-but-fully-relevant blocks
+  may be dropped rather than partially included — an intentional, honest trade recorded in
+  the audit. `compression_keep_ratio` (default 0.5) tunes aggressiveness.
+
 ### ADR-016 — Token-aware budgeting as value-per-token optimization
 - **Date:** 2026-05-31 · **Status:** Accepted · **Builds on:** ADR-009
 - **Decision:** Budgeting picks the best *set* under the token budget (knapsack-style,
