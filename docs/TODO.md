@@ -187,7 +187,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY (deps, commands), ERROR_LOG if wheel issues, DECISIONS (ADR-012).
 
 ## CP-015 — Model layer (protocols + BGE defaults + fakes)
-- **Status:** awaiting-approval
+- **Status:** done — protocols + BGE adapters + fakes; real models verified on GPU (1024-dim, reranker orders correctly)
 - **Description:** `models/` package: `EmbeddingModel` + `Reranker` protocols;
   `BGEM3Embedder` (BAAI/bge-m3, dense, GPU-aware), `BGEReranker`
   (BAAI/bge-reranker-v2-m3); deterministic `FakeEmbeddingModel`/`FakeReranker` for tests.

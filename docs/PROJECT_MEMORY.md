@@ -111,6 +111,22 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-015 done: model layer (protocols + BGE + fakes)
+- `models/base.py`: `EmbeddingModel`/`Reranker` runtime-checkable protocols (embeddings
+  L2-normalized → cosine==dot); `resolve_device(auto|cpu_only|force_gpu)`.
+- `models/bge.py`: `BGEM3Embedder` (BAAI/bge-m3 dense, dim 1024) + `BGEReranker`
+  (BAAI/bge-reranker-v2-m3) via sentence-transformers; GPU-aware; lazy heavy imports;
+  weights download on first construct. Version-robust embedding-dim lookup.
+- `models/fakes.py`: `FakeEmbeddingModel` (stable md5-hashing BoW, similarity reflects
+  word overlap) + `FakeReranker` (lexical overlap) — test-only, deterministic, offline.
+- mypy override for sentence_transformers/FlagEmbedding (no stubs).
+- `tests/test_models.py`: fakes (fast) + opt-in real-model test gated by
+  `CONTEXTPILOT_TEST_REAL_MODELS=1`.
+- **Verified real models on the RTX 5070 Ti**: BGE-M3 dim 1024, reranker scores relevant
+  > irrelevant (downloaded ~4.5GB to HF cache `C:\Users\mario\.cache\huggingface`).
+- ruff + mypy(strict) clean; **127 passed, 2 skipped** (tiktoken + real models).
+- Next: CP-016 (block vectors — reuse or compute).
+
 ### 2026-05-31 — CP-014 done: Python 3.12 + ML deps
 - Pinned `requires-python = ">=3.12,<3.13"`, `.python-version` 3.12; mypy python_version
   3.12. Added required core deps: `numpy`, `torch`, `sentence-transformers` (+ optional

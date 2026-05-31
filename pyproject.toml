@@ -74,7 +74,7 @@ python_version = "3.12"
 packages = ["contextpilot"]
 strict = true
 
-# Optional extra; may not be installed in the type-checking environment.
+# ML libraries without (complete) type stubs.
 [[tool.mypy.overrides]]
-module = ["tiktoken"]
+module = ["tiktoken", "sentence_transformers", "sentence_transformers.*", "FlagEmbedding", "FlagEmbedding.*"]
 ignore_missing_imports = true
