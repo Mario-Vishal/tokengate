@@ -65,8 +65,10 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
 - [x] **CP-001:** `pyproject.toml` (uv, src layout, hatchling) + full package skeleton
       with typed stubs + `py.typed`. `uv sync` green on Python 3.14; `import contextpilot`
       works; 2 smoke tests pass.
-- [ ] CP-002 utils (errors/logging/hashing) → next.
-- [ ] Core models, pipeline modules, optimizer.
+- [x] CP-002 utils (errors/logging/hashing) + tests.
+- [x] CP-003 `ContextBlock` model + tests. Suite at 29 passing.
+- [ ] CP-004 result/audit models → next.
+- [ ] Remaining pipeline modules + optimizer.
 
 ## Completed work
 
@@ -74,6 +76,13 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
   skeletons and full planning doc set for the library.
 - 2026-05-30: **CP-001** — package skeleton + `pyproject.toml`. Verified `uv sync`,
   import, and pytest (2 passing) on Python 3.14.0.
+- 2026-05-30: **CP-002** — utils: error hierarchy (`ContextPilotError` + subclasses,
+  exported at top level), deterministic `hashing` (sha256, short ids), library-safe
+  structured `logging` (`get_logger`/`log_event`, NullHandler). +8 tests.
+- 2026-05-30: **CP-003** — `ContextBlock` dataclass with validation (non-empty
+  content, scores in [0,1], non-negative tokens), stable auto `block_id` from content
+  hash, `ensure_token_count(counter)`, `to_dict`/`from_dict`/`copy`. Exported at top
+  level. +11 tests. Suite: **29 passing**.
 
 ## User feedback and requirements
 
@@ -149,3 +158,13 @@ blocks producing a prompt + audit (end of library V1).
 - Verified on Python 3.14.0: `uv sync` ok (no native-wheel issues — core has 0 runtime
   deps), `import contextpilot` ok, `uv run pytest` → 2 passed.
 - Committed. Next: CP-002 (utils: errors/logging/hashing).
+
+### 2026-05-30 — CP-002 utils + CP-003 ContextBlock
+- CP-002: `utils/errors.py` (ContextPilotError → InvalidBlockError/BudgetError/
+  OptimizationError, exported top-level), `utils/hashing.py` (deterministic sha256 +
+  `block_id_from_content`), `utils/logging.py` (`get_logger` w/ NullHandler,
+  `log_event` structured fields). `tests/test_utils.py`.
+- CP-003: `core/block.py` `ContextBlock` dataclass — validation, auto stable id,
+  `ensure_token_count`, dict round-trip + `copy`. Exported top-level.
+  `tests/test_block.py`.
+- `uv run pytest` → **29 passed**. Next: CP-004 (result + audit models).

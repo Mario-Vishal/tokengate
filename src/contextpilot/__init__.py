@@ -7,6 +7,23 @@ skeleton phase (CP-001) only the version is guaranteed importable; models and th
 
 from __future__ import annotations
 
+from contextpilot.core.block import ContextBlock
+from contextpilot.utils.errors import (
+    BudgetError,
+    ContextPilotError,
+    InvalidBlockError,
+    OptimizationError,
+)
+
 __version__ = "0.1.0"
 
-__all__ = ["__version__"]
+__all__ = [
+    "__version__",
+    # models
+    "ContextBlock",
+    # errors
+    "ContextPilotError",
+    "InvalidBlockError",
+    "BudgetError",
+    "OptimizationError",
+]

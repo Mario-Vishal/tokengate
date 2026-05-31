@@ -31,7 +31,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY (status, deps, commands).
 
 ## CP-002 — utils: errors, logging, hashing
-- **Status:** pending
+- **Status:** done
 - **Description:** Exception hierarchy rooted at `ContextPilotError`
   (`InvalidBlockError`, `BudgetError`, `OptimizationError`). Structured logger
   factory. Stable content hashing.
@@ -43,7 +43,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; DECISIONS if logging format chosen.
 
 ## CP-003 — Core model: ContextBlock
-- **Status:** pending
+- **Status:** done
 - **Description:** Implement `ContextBlock` with all fields, validation (non-empty
   content, score ranges), auto `block_id` from content hash when omitted, and a
   `token_count` accessor that uses an injected `TokenCounter` when None.
