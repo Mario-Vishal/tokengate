@@ -6,13 +6,15 @@ Decides each block's fate against the token budget:
   optional selection accounts for them. If required blocks alone exceed the budget they
   are still kept (the caller asked explicitly); the overage is reported honestly in the
   audit rather than silently dropped (ADR-009).
-- **optional** blocks are taken in ranked order while they fit the remaining space; one
-  that doesn't fit is first *compressed into the remaining space* (if compression is
-  enabled and the block is compressible) and kept if that makes it fit, else dropped.
+- **optional** blocks are taken by **value-per-token** (``final_score / tokens``), not
+  raw rank, so a small high-value block beats a large slightly-more-relevant one
+  ("best set under budget", ADR-016). One that doesn't fit is first *compressed into the
+  remaining space* (if enabled and compressible) and kept if that makes it fit, else
+  dropped.
 
-Greedy continues after a drop — a smaller, lower-ranked block may still fit. Every block
+Greedy continues after a drop — a smaller, denser block may still fit. Every block
 yields a :class:`BlockDecision` so the audit can explain the outcome. ``prompt_blocks``
-preserves the input (ranked) order with compressed copies substituted in place.
+preserves the input (ranked/MMR) order with compressed copies substituted in place.
 """
 
 from __future__ import annotations
@@ -30,6 +32,12 @@ from contextpilot.core.result import (
 )
 from contextpilot.models.base import EmbeddingModel
 from contextpilot.utils.errors import BudgetError
+
+
+def _value_density(block: ContextBlock, counter: TokenCounter) -> float:
+    """Utility per token: ``final_score / token_count`` (the value-per-token metric)."""
+    value = block.final_score if block.final_score is not None else 0.0
+    return value / max(block.ensure_token_count(counter), 1)
 
 
 @dataclass
@@ -89,10 +97,16 @@ def budget_blocks(
                           tokens, tokens, block.final_score),
         )
 
-    # (2) Fit optional blocks into the remaining space, in ranked order.
-    for block in ranked_blocks:
-        if block.required:
-            continue
+    # (2) Fit optional blocks by value-per-token ("best set under budget", ADR-016):
+    # process highest value-density first so a small high-value block beats a large
+    # slightly-more-relevant one. (Prompt order is restored to input order in step 3.)
+    optional = [b for b in ranked_blocks if not b.required]
+    by_density = sorted(
+        optional,
+        key=lambda b: (_value_density(b, counter), b.final_score or 0.0),
+        reverse=True,
+    )
+    for block in by_density:
         tokens = block.ensure_token_count(counter)
         score = block.final_score
         remaining = budget_tokens - outcome.used_tokens

@@ -104,6 +104,20 @@ def test_compression_to_fit_included_as_compressed() -> None:
     assert "job search" in out.compressed[0].content
 
 
+def test_value_per_token_prefers_dense_blocks() -> None:
+    # Budget fits two small high-value blocks OR one large block. Value-per-token should
+    # pick the two small ones (total value 1.35 > 0.80), unlike a rank-by-score budgeter
+    # which would take the single highest-score 'big' block first.
+    big = _block("big", 400, score=0.80)     # density 0.0020
+    s1 = _block("s1", 200, score=0.70)        # density 0.0035
+    s2 = _block("s2", 200, score=0.65)        # density 0.00325
+    out = budget_blocks([big, s1, s2], query="q", budget_tokens=400, counter=_COUNTER)
+    kept = {b.block_id for b in out.included}
+    assert kept == {"s1", "s2"}
+    assert "big" in {b.block_id for b in out.dropped}
+    assert out.used_tokens == 400
+
+
 def test_non_compressible_over_budget_is_dropped_not_compressed() -> None:
     doc = "one. two. three. four. five. six. seven. eight."
     block = ContextBlock(content=doc, block_id="nc", final_score=0.9, compressible=False)

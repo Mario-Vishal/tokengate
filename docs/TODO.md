@@ -250,7 +250,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Tests:** diversity vs redundancy. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-015).
 
 ## CP-022 — Value-per-token budgeting
-- **Status:** awaiting-approval
+- **Status:** done — optional selection by final_score/tokens density (best set under budget); prompt order preserved
 - **Description:** Upgrade budgeter to value/token "best set under budget" (knapsack-style
   greedy), required-first reservation (ADR-009), compress-before-drop.
 - **Repo:** contextpilot · **Files:** `budgeting/budgeter.py`

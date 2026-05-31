@@ -111,6 +111,15 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-022 done: value-per-token budgeting
+- `budgeter.py`: optional blocks now selected by **value-density** (`final_score/tokens`,
+  ADR-016) — process densest first, compress-to-fit, drop; required reserved first
+  (ADR-009); `prompt_blocks` still emitted in input (ranked/MMR) order. Added
+  `_value_density` helper.
+- New test proves value/token picks two small high-value blocks over one large block (a
+  rank-by-score budgeter would not). ruff+mypy(strict) clean; **174 passed, 2 skipped**.
+- Next: CP-023 (optimizer rewire to full neural pipeline + richer audit).
+
 ### 2026-05-31 — CP-021 done: MMR diversity selection
 - `selection/mmr.py`: `mmr_select(blocks, *, lambda_, top_k)` greedy
   `λ·relevance − (1−λ)·max_sim(selected)`. Relevance = rerank_score else final_score,
