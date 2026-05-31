@@ -23,8 +23,8 @@ dependencies = []
 tiktoken = ["tiktoken>=0.7"]
 
 [project.urls]
-Homepage = "https://github.com/"
-Repository = "https://github.com/"
+Homepage = "https://github.com/Mario-Vishal/contextpilot"
+Repository = "https://github.com/Mario-Vishal/contextpilot"
 
 [dependency-groups]
 dev = [
