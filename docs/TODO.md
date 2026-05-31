@@ -176,7 +176,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 > Neural is required core (not optional). No generative LLM in the path.
 
 ## CP-014 — Environment & ML dependencies (Python 3.12)
-- **Status:** awaiting-approval
+- **Status:** done — Py 3.12.13, torch 2.12 (CPU), sentence-transformers 5.5.1; 117 tests pass
 - **Description:** Set `requires-python = ">=3.12,<3.13"`; create uv 3.12 venv; add core
   deps `torch`, `sentence-transformers` and/or `FlagEmbedding`, `numpy`. Verify they
   install and import; document download/cache behavior of models.

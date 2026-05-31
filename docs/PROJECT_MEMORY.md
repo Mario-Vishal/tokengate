@@ -111,6 +111,20 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-014 done: Python 3.12 + ML deps
+- Pinned `requires-python = ">=3.12,<3.13"`, `.python-version` 3.12; mypy python_version
+  3.12. Added required core deps: `numpy`, `torch`, `sentence-transformers` (+ optional
+  `flag` extra for future BGE-M3 sparse/ColBERT).
+- `uv sync` on **Python 3.12.13** OK: torch **2.12.0+cpu**, sentence-transformers 5.5.1,
+  transformers 5.9, numpy 2.4.6 (also pulled scikit-learn/scipy). **torch is the CPU
+  build** — GPU optional; for CUDA on this Windows box we'd install the CUDA torch wheel
+  later (not needed for correctness).
+- V1 suite still green on 3.12; added `tests/test_env.py`. **117 passed, 1 skipped.**
+- Resolves PD-3: **Beacon backend should also pin Python 3.12** for LanceDB/BGE/OCR wheels.
+- Git history in both repos rewritten to drop the Claude co-author trailer; force-pushed.
+  Future commits omit it (see [[no-claude-coauthor]]).
+- Next: CP-015 (model layer — protocols + BGE defaults + fakes).
+
 ### 2026-05-31 — Mature vision: neural context optimization (V2 direction)
 User paused Beacon and specified the "mature" ContextPilot: a **neural** context
 optimization engine. Full spec captured in [`V2_DESIGN.md`](V2_DESIGN.md). Essentials:
