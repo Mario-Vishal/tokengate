@@ -8,7 +8,7 @@ change (ADR-008).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from contextpilot.utils.errors import ConfigurationError
@@ -27,8 +27,14 @@ class OptimizerConfig:
 
     max_prompt_tokens: int = 4096
     strategy: str = STRATEGY_BALANCED
-    semantic_weight: float = 0.6
-    keyword_weight: float = 0.4
+    # --- hybrid ranking signal weights (renormalized per block over available signals) ---
+    semantic_weight: float = 0.45
+    keyword_weight: float = 0.25
+    recency_weight: float = 0.10
+    source_priority_weight: float = 0.10
+    token_efficiency_weight: float = 0.10
+    # Optional per-source priority in [0,1]; sources absent from the map skip that signal.
+    source_priorities: dict[str, float] = field(default_factory=dict)
     enable_dedup: bool = True
     enable_compression: bool = True
     # Fraction of the budget held back as headroom against tokenizer estimation drift.
@@ -44,12 +50,24 @@ class OptimizerConfig:
                 f"unknown strategy {self.strategy!r}; "
                 f"supported in V1: {sorted(_V1_STRATEGIES)}"
             )
-        if self.semantic_weight < 0 or self.keyword_weight < 0:
+        if any(w < 0 for w in self._weights.values()):
             raise ConfigurationError("scoring weights must be non-negative")
-        if self.semantic_weight == 0 and self.keyword_weight == 0:
+        if sum(self._weights.values()) <= 0:
             raise ConfigurationError("at least one scoring weight must be > 0")
+        if not all(0.0 <= p <= 1.0 for p in self.source_priorities.values()):
+            raise ConfigurationError("source_priorities values must be in [0.0, 1.0]")
         if not (0.0 <= self.safety_margin < 1.0):
             raise ConfigurationError("safety_margin must be in [0.0, 1.0)")
+
+    @property
+    def _weights(self) -> dict[str, float]:
+        return {
+            "semantic": self.semantic_weight,
+            "keyword": self.keyword_weight,
+            "recency": self.recency_weight,
+            "source_priority": self.source_priority_weight,
+            "token_efficiency": self.token_efficiency_weight,
+        }
 
     @property
     def effective_budget(self) -> int:
@@ -76,8 +94,11 @@ class OptimizerConfig:
 _PRESETS: dict[str, dict[str, object]] = {
     STRATEGY_BALANCED: {
         "strategy": STRATEGY_BALANCED,
-        "semantic_weight": 0.6,
-        "keyword_weight": 0.4,
+        "semantic_weight": 0.45,
+        "keyword_weight": 0.25,
+        "recency_weight": 0.10,
+        "source_priority_weight": 0.10,
+        "token_efficiency_weight": 0.10,
         "enable_dedup": True,
         "enable_compression": True,
         "safety_margin": 0.05,

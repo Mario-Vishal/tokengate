@@ -208,7 +208,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Tests:** reuse path, compute path, dim-mismatch. **Docs:** PROJECT_MEMORY; DECISIONS (ADR-011).
 
 ## CP-017 — Semantic scoring + expanded hybrid ranking
-- **Status:** awaiting-approval
+- **Status:** done — cosine semantic scorer + recency/source/token-eff signals + multi-signal hybrid (per-block renormalized)
 - **Description:** Cosine semantic score (query vec vs block vec, numpy). Expand hybrid
   ranking with recency, source_priority, token_efficiency signals + configurable weights
   with renormalization for missing signals.

@@ -12,8 +12,24 @@ def test_defaults_are_balanced() -> None:
     cfg = OptimizerConfig()
     assert cfg.strategy == STRATEGY_BALANCED
     assert cfg.max_prompt_tokens == 4096
-    assert cfg.semantic_weight == 0.6
-    assert cfg.keyword_weight == 0.4
+    assert cfg.semantic_weight == 0.45
+    assert cfg.keyword_weight == 0.25
+    assert cfg.recency_weight == 0.10
+    assert cfg.source_priority_weight == 0.10
+    assert cfg.token_efficiency_weight == 0.10
+
+
+def test_all_zero_weights_rejected() -> None:
+    with pytest.raises(ConfigurationError):
+        OptimizerConfig(
+            semantic_weight=0.0, keyword_weight=0.0, recency_weight=0.0,
+            source_priority_weight=0.0, token_efficiency_weight=0.0,
+        )
+
+
+def test_bad_source_priority_value_rejected() -> None:
+    with pytest.raises(ConfigurationError):
+        OptimizerConfig(source_priorities={"downloads": 1.5})
 
 
 @pytest.mark.parametrize("bad", [0, -1])
@@ -32,9 +48,10 @@ def test_negative_weight_rejected() -> None:
         OptimizerConfig(semantic_weight=-0.1)
 
 
-def test_both_weights_zero_rejected() -> None:
-    with pytest.raises(ConfigurationError):
-        OptimizerConfig(semantic_weight=0.0, keyword_weight=0.0)
+def test_semantic_and_keyword_zero_ok_when_others_positive() -> None:
+    # Other signals still carry weight, so this is valid (not all-zero).
+    cfg = OptimizerConfig(semantic_weight=0.0, keyword_weight=0.0)
+    assert cfg.recency_weight > 0
 
 
 @pytest.mark.parametrize("bad", [-0.01, 1.0, 1.5])

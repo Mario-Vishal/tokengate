@@ -111,6 +111,22 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-017 done: semantic scoring + multi-signal hybrid ranking
+- `ranking/semantic_scorer.py`: `cosine_scores` (normalized vectors → dot, clamped [0,1])
+  + `apply_semantic_scores` (sets `block.semantic_score`).
+- `ranking/signals.py`: set-relative `recency_scores` (parses ISO/epoch `modified_time`),
+  `token_efficiency_scores` (fewer tokens → higher), `source_priority_scores` (config map);
+  each returns None where unavailable.
+- `ranking/hybrid_ranker.py` rewritten: `weighted_average` over **available** signals
+  (per-block renormalization), 5 signals: semantic/keyword/recency/source_priority/
+  token_efficiency. `combine_scores` kept for compat.
+- `core/config.py`: weights now 0.45/0.25/0.10/0.10/0.10 + `source_priorities` map;
+  validation updated (non-negative, ≥1 positive, priorities in [0,1]). Optimizer passes
+  all weights through.
+- Tests: `test_semantic_scoring.py`; updated `test_config.py`. ruff+mypy(strict) clean;
+  **154 passed, 2 skipped**.
+- Next: CP-018 (neural reranking stage).
+
 ### 2026-05-31 — CP-016 done: block vectors (reuse or compute)
 - `ContextBlock.vector: np.ndarray | None` (coerced to 1-D float32; validated; excluded
   from eq/repr to avoid ndarray-eq ambiguity; serialized as list in `to_dict`, round-trips

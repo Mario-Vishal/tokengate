@@ -93,11 +93,15 @@ class ContextPilot:
             for b in dup_dropped
         ]
 
-        # (2-4) score + rank
+        # (2-4) score + rank (multi-signal hybrid)
         ranked = rank_blocks(
             query, kept,
             semantic_weight=cfg.semantic_weight,
             keyword_weight=cfg.keyword_weight,
+            recency_weight=cfg.recency_weight,
+            source_priority_weight=cfg.source_priority_weight,
+            token_efficiency_weight=cfg.token_efficiency_weight,
+            source_priorities=cfg.source_priorities,
         )
 
         # (5-7) budget with compress-to-fit
