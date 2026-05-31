@@ -57,6 +57,11 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
 
 ## Current implementation status
 
+**LIBRARY V2 — NEURAL ENGINE COMPLETE (v0.2.0).** Full neural pipeline (embeddings +
+cross-encoder rerank + semantic dedup + MMR + value/token budgeting + extractive
+compression) implemented and tested: 178 passing + 4 opt-in real-model tests verified on
+GPU, mypy strict + ruff clean. CP-014..CP-024 all done. (V1 history below.)
+
 **LIBRARY V1 COMPLETE (v0.1.0).** Full pipeline implemented + tested (114 passing,
 mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Beacon.
 
@@ -110,6 +115,17 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
   level. +11 tests. Suite: **29 passing**.
 
 ## User feedback and requirements
+
+### 2026-05-31 — CP-024 done: V2 hardening + benchmark → LIBRARY V2 (v0.2.0)
+- `tests/test_integration.py`: opt-in real-model end-to-end (gated by
+  `CONTEXTPILOT_TEST_REAL_MODELS=1`) — **ran on the RTX 5070 Ti, passing**; full neural
+  pipeline produces a prompt + audit; `models_used` = BAAI/bge-m3 + bge-reranker-v2-m3.
+- `benchmarks/benchmark.py`: baseline (stuff-all) vs ContextPilot across the 4 strategy
+  presets (fake models, deterministic, offline). On a 10-block synthetic workspace:
+  speed ~58% fewer tokens, balanced/quality ~24%, max_compression ~28%. Output →
+  `benchmarks/output/summary.md` (gitignored).
+- mypy(strict)+ruff clean; **178 passed, 4 skipped** (2 model + 2 integration opt-in).
+- **ContextPilot library V2 (neural engine) COMPLETE.** Tagged **v0.2.0**.
 
 ### 2026-05-31 — CP-023 done: optimizer rewired to full neural pipeline
 - `ContextPilot` now takes `embedding_model` + `reranker` (lazy BGE defaults; injected

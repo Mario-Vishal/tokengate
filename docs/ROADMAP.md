@@ -61,9 +61,10 @@ Phases are sequential. A phase is "done" only when its code **and** tests pass a
 
 ## V2 — Neural context optimization engine (approved 2026-05-31)
 
-> Direction approved; **detailed task breakdown (CP-014+) awaiting user sign-off before
-> any code.** Full design: [`V2_DESIGN.md`](V2_DESIGN.md). ADR-010..016. Neural is
-> required core — not optional. No generative LLM in the path (extractive only).
+> **STATUS (2026-05-31): V2 COMPLETE — neural engine shipped as v0.2.0.** CP-014..CP-024
+> done; 178 tests + 4 opt-in real-model tests (verified on GPU); mypy strict + ruff clean.
+> Full design: [`V2_DESIGN.md`](V2_DESIGN.md). ADR-010..017. Neural is required core. No
+> generative LLM in the path (extractive only).
 
 Sequential phases (each: code + tests green + PROJECT_MEMORY updated):
 

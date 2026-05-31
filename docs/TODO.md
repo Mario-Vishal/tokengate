@@ -268,7 +268,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Tests:** end-to-end neural pipeline (fakes); audit fields. **Docs:** PROJECT_MEMORY; LIBRARY_API rewrite.
 
 ## CP-024 — V2 hardening & benchmarks
-- **Status:** awaiting-approval
+- **Status:** done — real-model integration test (GPU, passing), baseline-vs-neural benchmark, tag v0.2.0
 - **Description:** Opt-in integration tests with real BGE models; baseline (V1-style) vs
   neural benchmark on a fixture; mypy/ruff clean; finalize docs; tag `v0.2.0`.
 - **Repo:** contextpilot · **Files:** tests, benchmark script, docs
