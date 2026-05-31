@@ -7,6 +7,10 @@ skeleton phase (CP-001) only the version is guaranteed importable; models and th
 
 from __future__ import annotations
 
+from contextpilot.budgeting.token_counter import (
+    HeuristicTokenCounter,
+    TokenCounter,
+)
 from contextpilot.core.block import ContextBlock
 from contextpilot.core.config import OptimizerConfig
 from contextpilot.core.result import (
@@ -32,6 +36,9 @@ __all__ = [
     "AuditReport",
     "BlockDecision",
     "OptimizerConfig",
+    # token counting
+    "TokenCounter",
+    "HeuristicTokenCounter",
     # errors
     "ContextPilotError",
     "InvalidBlockError",

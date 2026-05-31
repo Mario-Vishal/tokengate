@@ -70,8 +70,9 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
 - [x] CP-004 result/audit models (`OptimizationResult`/`AuditReport`/`BlockDecision`)
       + `build_audit_report` + tests.
 - [x] CP-005 `OptimizerConfig` + strategy preset + `ConfigurationError` + tests.
-      Suite at **48 passing**, ruff clean.
-- [ ] CP-006 token counting → next.
+      Suite at 48 passing, ruff clean.
+- [x] CP-006 token counting (heuristic + optional tiktoken) + tests. Suite **56 passing**.
+- [ ] CP-007 exact dedup → next.
 - [ ] Remaining pipeline modules (dedup, ranking, compression, budgeter, prompt) + optimizer.
 
 ## Completed work
@@ -162,6 +163,16 @@ blocks producing a prompt + audit (end of library V1).
 - Verified on Python 3.14.0: `uv sync` ok (no native-wheel issues — core has 0 runtime
   deps), `import contextpilot` ok, `uv run pytest` → 2 passed.
 - Committed. Next: CP-002 (utils: errors/logging/hashing).
+
+### 2026-05-30 — CP-006 token counting
+- `budgeting/token_counter.py`: `TokenCounter` runtime-checkable Protocol;
+  `HeuristicTokenCounter` (dependency-free, `max(ceil(chars/4), word_count)`,
+  conservative + monotonic); `TiktokenCounter` (optional extra, clear ImportError when
+  missing); `resolve_counter()` default helper. Exported `TokenCounter` +
+  `HeuristicTokenCounter` at top level. `tests/test_token_counter.py`.
+- GitHub: created+pushed private repos (account Mario-Vishal). `gh` lives at
+  `C:\Program Files\GitHub CLI\gh.exe` (not on session PATH).
+- `uv run pytest` → **56 passed, 1 skipped** (tiktoken not installed). Next: CP-007.
 
 ### 2026-05-30 — CP-004 result/audit models + CP-005 config
 - CP-004: `core/result.py` (`BlockDecision`, `AuditReport`, `OptimizationResult` +

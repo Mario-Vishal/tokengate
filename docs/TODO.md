@@ -75,7 +75,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** DECISIONS (weights), LIBRARY_API.
 
 ## CP-006 — Token counting
-- **Status:** pending
+- **Status:** done
 - **Description:** `TokenCounter` protocol; `HeuristicTokenCounter` default;
   optional `TiktokenCounter` (guarded import). Safety-margin helper.
 - **Repo:** contextpilot
