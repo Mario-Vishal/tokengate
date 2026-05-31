@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from contextpilot.models.base import EmbeddingModel, Reranker, resolve_device
 from contextpilot.models.fakes import FakeEmbeddingModel, FakeReranker
+from contextpilot.models.vectors import embed_query, ensure_block_vectors
 
 __all__ = [
     "EmbeddingModel",
@@ -16,6 +17,8 @@ __all__ = [
     "resolve_device",
     "FakeEmbeddingModel",
     "FakeReranker",
+    "ensure_block_vectors",
+    "embed_query",
     # Real models imported lazily to avoid pulling torch on `import contextpilot.models`:
     #   from contextpilot.models.bge import BGEM3Embedder, BGEReranker
 ]

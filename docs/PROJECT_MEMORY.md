@@ -111,6 +111,16 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-016 done: block vectors (reuse or compute)
+- `ContextBlock.vector: np.ndarray | None` (coerced to 1-D float32; validated; excluded
+  from eq/repr to avoid ndarray-eq ambiguity; serialized as list in `to_dict`, round-trips
+  via `from_dict`; preserved by `copy`).
+- `models/vectors.py`: `ensure_block_vectors(blocks, model)` reuses present
+  correctly-sized vectors, batch-computes missing ones (and recomputes dim-mismatched,
+  logged), caches back, returns `(n, dim)` matrix in order; `embed_query(query, model)`.
+- `tests/test_vectors.py`. ruff + mypy(strict) clean; **138 passed, 2 skipped**.
+- Next: CP-017 (semantic scoring + expanded hybrid ranking).
+
 ### 2026-05-31 — CP-015 done: model layer (protocols + BGE + fakes)
 - `models/base.py`: `EmbeddingModel`/`Reranker` runtime-checkable protocols (embeddings
   L2-normalized → cosine==dot); `resolve_device(auto|cpu_only|force_gpu)`.

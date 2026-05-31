@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 from contextpilot.utils.errors import InvalidBlockError
 from contextpilot.utils.hashing import block_id_from_content
 
@@ -33,6 +35,16 @@ def _validate_score(name: str, value: float | None) -> None:
         )
 
 
+def _coerce_vector(value: Any) -> np.ndarray | None:
+    """Normalize a provided vector to a 1-D float32 ndarray (or None)."""
+    if value is None:
+        return None
+    arr = np.asarray(value, dtype=np.float32)
+    if arr.ndim != 1 or arr.size == 0:
+        raise InvalidBlockError("vector must be a non-empty 1-D sequence of numbers")
+    return arr
+
+
 @dataclass
 class ContextBlock:
     """A single candidate piece of context.
@@ -53,6 +65,10 @@ class ContextBlock:
     required: bool = False
     cacheable: bool = False
     compressible: bool = True
+    # Dense embedding (e.g. BGE-M3 from the app's LanceDB). Reused when present so the
+    # engine doesn't re-embed (ADR-011). Excluded from eq/repr to avoid ndarray-in-eq
+    # ambiguity and huge reprs; serialized as a plain list by to_dict().
+    vector: np.ndarray | None = field(default=None, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.content, str) or not self.content.strip():
@@ -64,6 +80,7 @@ class ContextBlock:
         _validate_score("final_score", self.final_score)
         if self.token_count is not None and self.token_count < 0:
             raise InvalidBlockError("token_count must be non-negative")
+        self.vector = _coerce_vector(self.vector)
 
     # --- token counting ---------------------------------------------------
 
@@ -92,6 +109,7 @@ class ContextBlock:
             "required": self.required,
             "cacheable": self.cacheable,
             "compressible": self.compressible,
+            "vector": self.vector.tolist() if self.vector is not None else None,
         }
 
     @classmethod

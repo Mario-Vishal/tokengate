@@ -199,7 +199,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API (model interfaces); DECISIONS (ADR-013).
 
 ## CP-016 — Block vectors (reuse or compute)
-- **Status:** awaiting-approval
+- **Status:** done — ContextBlock.vector + ensure_block_vectors (reuse/compute/dim-mismatch) + tests
 - **Description:** Add `vector: Sequence[float] | None` to `ContextBlock`; helper to
   ensure vectors (reuse if present, else embed via model); validate dim vs model.
 - **Repo:** contextpilot
