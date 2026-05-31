@@ -73,9 +73,11 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
       Suite at 48 passing, ruff clean.
 - [x] CP-006 token counting (heuristic + optional tiktoken) + tests.
 - [x] CP-007 exact dedup + tests.
-- [x] CP-008 ranking (keyword/normalize/hybrid) + tests. Suite **78 passing**.
-- [ ] CP-009 extractive compression → next.
-- [ ] CP-010 budgeter, CP-011 prompt builder, CP-012 optimizer, CP-013 hardening.
+- [x] CP-008 ranking (keyword/normalize/hybrid) + tests.
+- [x] CP-009 extractive compression + tests.
+- [x] CP-010 greedy budgeter + tests (ADR-009). Suite **95 passing**.
+- [ ] CP-011 prompt builder → next.
+- [ ] CP-012 optimizer (end-to-end), CP-013 hardening.
 
 ## Completed work
 
@@ -165,6 +167,19 @@ blocks producing a prompt + audit (end of library V1).
 - Verified on Python 3.14.0: `uv sync` ok (no native-wheel issues — core has 0 runtime
   deps), `import contextpilot` ok, `uv run pytest` → 2 passed.
 - Committed. Next: CP-002 (utils: errors/logging/hashing).
+
+### 2026-05-30 — CP-009 compression + CP-010 budgeter
+- CP-009: `compression/extractive.py` — `split_sentences`, `compress_text`
+  (query-relevant sentence selection under a token target; never empties; returns
+  original when it already fits or is single-sentence), `compress_block` (respects
+  `compressible=False`; tags `metadata.compressed`/`original_token_count`).
+  `tests/test_compression.py`.
+- CP-010: `budgeting/budgeter.py` — `budget_blocks()` → `BudgetOutcome`
+  (included/compressed/dropped + decisions + used_tokens). Required-first (always
+  kept, **ADR-009**), optional fit-or-compress-to-fit-or-drop, greedy continues after
+  a drop. Compressed blocks live in `compressed` (decision=compressed), not
+  double-counted in `included`; prompt = included + compressed. `tests/test_budgeter.py`.
+- ruff clean; `uv run pytest` → **95 passed, 1 skipped**. Next: CP-011 prompt builder.
 
 ### 2026-05-30 — CP-007 exact dedup + CP-008 ranking
 - CP-007: `deduplication/exact.py` `deduplicate_exact()` → `(kept, dropped)`;

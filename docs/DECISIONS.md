@@ -69,6 +69,21 @@ Format: ID · Date · Status · Context · Decision · Consequences.
 - **Consequences:** Clear brand separation. Beacon depends on `contextpilot`; never
   the reverse.
 
+### ADR-009 — Required blocks are always included, even past the budget
+- **Date:** 2026-05-30 · **Status:** Accepted
+- **Context:** A caller marks a block `required=True` to guarantee it reaches the LLM
+  (e.g. a system instruction). The token budget could in principle be smaller than the
+  required blocks alone.
+- **Decision:** The budgeter always includes every `required` block, even if their
+  combined tokens exceed `max_prompt_tokens`. The overage is reported honestly in the
+  audit (`final_prompt_tokens` may exceed the budget; `tokens_saved` can be small or
+  negative) rather than silently dropping required content. Optional blocks are then
+  fitted into whatever budget remains.
+- **Consequences:** Predictable guarantee for callers; no silent loss of mandated
+  context. Callers who over-mark `required` can blow the budget — surfaced via the
+  audit so it's diagnosable. (A future `strict_budget` option could raise `BudgetError`
+  instead; deferred.)
+
 ### ADR-008 — Single `balanced` strategy in V1, config shape reserves the rest
 - **Date:** 2026-05-30 · **Status:** Accepted
 - **Context:** Multiple strategy presets are a V2 feature, but the API shouldn't

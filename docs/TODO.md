@@ -108,7 +108,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-009 — Extractive compression
-- **Status:** pending
+- **Status:** done
 - **Description:** Sentence-selection compression of large `compressible` blocks,
   keeping query-relevant sentences under a target ratio/token target.
 - **Repo:** contextpilot
@@ -119,7 +119,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-010 — Greedy budgeter
-- **Status:** pending
+- **Status:** done (see ADR-009 for required-over-budget behavior)
 - **Description:** Select blocks (ranked, required-first) under `max_prompt_tokens`
   using the token counter + safety margin; trigger compression for high-value large
   blocks before dropping; record drops.
