@@ -111,6 +111,15 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-019 done: semantic deduplication
+- `deduplication/semantic.py`: `deduplicate_semantic(blocks, *, threshold)` →
+  `SemanticDedupResult(kept, dropped, duplicate_of, similarity)`. Cosine over block
+  vectors (normalized→dot); best-first representative (call after reranking); blocks
+  without vectors always kept. `near_duplicate.py` re-exports it.
+- config: `enable_semantic_dedup` (True), `semantic_dedup_threshold` (0.9, validated).
+- Tests `test_semantic_dedup.py` (fake embedder = BoW, so paraphrase = reordered tokens).
+- ruff+mypy(strict) clean; **167 passed, 2 skipped**. Next: CP-020 (extractive compression upgrade).
+
 ### 2026-05-31 — CP-018 done: neural reranking stage
 - `ContextBlock.rerank_score` field (raw cross-encoder score, unbounded, not range-
   validated; in `to_dict`).

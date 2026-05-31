@@ -226,7 +226,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Tests:** ordering by rerank; cutoff. **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-019 — Semantic deduplication
-- **Status:** awaiting-approval
+- **Status:** done — embedding-cosine dedup, best-first representative, reasons recorded + tests
 - **Description:** `deduplication/semantic.py` — cosine threshold dedup over block
   vectors; keep best representative (rerank/score/length/recency/source); record reasons.
 - **Repo:** contextpilot · **Files:** `deduplication/semantic.py`
