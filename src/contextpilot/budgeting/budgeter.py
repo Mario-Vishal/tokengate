@@ -28,6 +28,7 @@ from contextpilot.core.result import (
     DECISION_INCLUDED,
     BlockDecision,
 )
+from contextpilot.models.base import EmbeddingModel
 from contextpilot.utils.errors import BudgetError
 
 
@@ -56,8 +57,14 @@ def budget_blocks(
     budget_tokens: int,
     counter: TokenCounter | None = None,
     enable_compression: bool = True,
+    embedding_model: EmbeddingModel | None = None,
 ) -> BudgetOutcome:
-    """Select blocks under ``budget_tokens`` (required reserved first, compress-to-fit)."""
+    """Select blocks under ``budget_tokens`` (required reserved first, compress-to-fit).
+
+    Compress-to-fit needs ``embedding_model`` (extractive compression scores sentences
+    with embeddings). Without one, oversized optional blocks are dropped rather than
+    compressed; the engine (optimizer) always supplies a model.
+    """
     if budget_tokens <= 0:
         raise BudgetError(f"budget_tokens must be positive, got {budget_tokens}")
 
@@ -100,9 +107,14 @@ def budget_blocks(
             )
             continue
 
-        if enable_compression and block.compressible and remaining > 0:
+        if (
+            enable_compression
+            and embedding_model is not None
+            and block.compressible
+            and remaining > 0
+        ):
             compressed = compress_block(
-                block, query, target_tokens=remaining, counter=counter
+                block, query, embedding_model, target_tokens=remaining, counter=counter
             )
             new_tokens = compressed.ensure_token_count(counter)
             if compressed is not block and new_tokens <= remaining < tokens:

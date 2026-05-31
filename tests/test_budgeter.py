@@ -11,6 +11,7 @@ from contextpilot.core.result import (
     DECISION_DROPPED,
     DECISION_INCLUDED,
 )
+from contextpilot.models import FakeEmbeddingModel
 from contextpilot.utils.errors import BudgetError
 
 _COUNTER = HeuristicTokenCounter()
@@ -92,7 +93,7 @@ def test_compression_to_fit_included_as_compressed() -> None:
     budget = full_tokens - 10  # forces it not to fit as-is
 
     out = budget_blocks([big], query="job search resume", budget_tokens=budget,
-                        counter=_COUNTER)
+                        counter=_COUNTER, embedding_model=FakeEmbeddingModel(dim=128))
     assert [b.block_id for b in out.compressed] == ["big"]
     assert out.included == []
     assert out.used_tokens <= budget

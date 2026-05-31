@@ -1,4 +1,4 @@
-"""CP-009 tests: extractive compression."""
+"""CP-009/CP-020 tests: embedding-based extractive compression (with FakeEmbeddingModel)."""
 
 from __future__ import annotations
 
@@ -6,10 +6,13 @@ from contextpilot import ContextBlock, HeuristicTokenCounter
 from contextpilot.compression.extractive import (
     compress_block,
     compress_text,
+    score_sentences,
     split_sentences,
 )
+from contextpilot.models import FakeEmbeddingModel
 
 _COUNTER = HeuristicTokenCounter()
+_MODEL = FakeEmbeddingModel(dim=128)
 
 _DOC = (
     "The quarterly budget report covers expenses. "
@@ -24,53 +27,51 @@ def test_split_sentences() -> None:
     assert split_sentences("") == []
 
 
-def test_compress_text_stays_under_target() -> None:
-    target = 12
-    out = compress_text(_DOC, "job search resume", target_tokens=target, counter=_COUNTER)
-    assert _COUNTER.count(out) <= max(
-        target, _COUNTER.count("Our job search strategy focuses on resume keywords and networking.")
-    )
+def test_score_sentences_returns_scores_and_vectors() -> None:
+    sents = split_sentences(_DOC)
+    scores, vecs = score_sentences("job search resume", sents, _MODEL)
+    assert len(scores) == len(sents)
+    assert vecs.shape == (len(sents), _MODEL.dim)
+    # the job-search sentence should score highest
+    assert scores[1] == max(scores)
+
+
+def test_compress_text_stays_under_target_and_keeps_relevant() -> None:
+    out = compress_text(_DOC, "job search resume", _MODEL, target_tokens=12, counter=_COUNTER)
     assert _COUNTER.count(out) <= _COUNTER.count(_DOC)
-
-
-def test_compress_keeps_query_relevant_sentence() -> None:
-    out = compress_text(_DOC, "job search resume", target_tokens=12, counter=_COUNTER)
     assert "job search strategy" in out
 
 
 def test_compress_never_empties() -> None:
-    out = compress_text(_DOC, "no matching terms here xyz", target_tokens=1, counter=_COUNTER)
+    out = compress_text(_DOC, "xyzzy no match", _MODEL, target_tokens=1, counter=_COUNTER)
     assert out.strip() != ""
 
 
 def test_compress_returns_original_when_already_fits() -> None:
-    out = compress_text(_DOC, "job", target_tokens=10_000, counter=_COUNTER)
-    assert out == _DOC
+    assert compress_text(_DOC, "job", _MODEL, target_tokens=10_000, counter=_COUNTER) == _DOC
 
 
 def test_compress_single_sentence_unchanged() -> None:
     one = "This is a single long sentence that cannot be split any further at all"
-    assert compress_text(one, "single", target_tokens=2, counter=_COUNTER) == one
+    assert compress_text(one, "single", _MODEL, target_tokens=2, counter=_COUNTER) == one
 
 
 def test_compress_block_respects_non_compressible() -> None:
     block = ContextBlock(content=_DOC, compressible=False)
-    result = compress_block(block, "job search", target_tokens=5, counter=_COUNTER)
-    assert result is block  # untouched
+    assert compress_block(block, "job search", _MODEL, target_tokens=5, counter=_COUNTER) is block
 
 
-def test_compress_block_produces_smaller_copy_with_metadata() -> None:
+def test_compress_block_smaller_copy_with_metadata() -> None:
     block = ContextBlock(content=_DOC, block_id="orig")
-    result = compress_block(block, "job search resume", target_tokens=12, counter=_COUNTER)
+    result = compress_block(block, "job search resume", _MODEL, target_tokens=12, counter=_COUNTER)
     assert result is not block
-    assert result.token_count is not None
-    assert result.token_count <= _COUNTER.count(_DOC)
+    assert result.token_count is not None and result.token_count <= _COUNTER.count(_DOC)
     assert result.metadata["compressed"] is True
+    assert result.metadata["compression_method"] == "embedding_extractive"
     assert result.metadata["original_token_count"] == _COUNTER.count(_DOC)
     assert block.content == _DOC  # original untouched
 
 
 def test_compress_block_unchanged_when_fits() -> None:
     block = ContextBlock(content=_DOC)
-    result = compress_block(block, "job", target_tokens=10_000, counter=_COUNTER)
-    assert result is block
+    assert compress_block(block, "job", _MODEL, target_tokens=10_000, counter=_COUNTER) is block

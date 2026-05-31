@@ -111,6 +111,17 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-020 done: embedding extractive compression
+- `compression/extractive.py` upgraded: `score_sentences` = w_sem·cosine(query,sentence)
+  + w_kw·keyword_overlap + entity_bonus + heading_bonus; `compress_text` greedy MMR
+  (redundancy penalty vs already-selected); `compress_block` now requires an
+  `EmbeddingModel` and tags `compression_method="embedding_extractive"`. Still no LLM
+  (ADR-014).
+- Threaded `embedding_model` through `budget_blocks` (compress-to-fit needs it; without
+  a model oversized blocks drop). Optimizer wiring of the model lands in CP-023.
+- Updated `test_compression.py` + budgeter compression test to pass FakeEmbeddingModel.
+- ruff+mypy(strict) clean; **167 passed, 2 skipped**. Next: CP-021 (MMR selection).
+
 ### 2026-05-31 — CP-019 done: semantic deduplication
 - `deduplication/semantic.py`: `deduplicate_semantic(blocks, *, threshold)` →
   `SemanticDedupResult(kept, dropped, duplicate_of, similarity)`. Cosine over block

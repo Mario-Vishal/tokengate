@@ -234,7 +234,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
   paraphrase pair collapses; distinct survive. **Docs:** PROJECT_MEMORY; DECISIONS (already ADR'd).
 
 ## CP-020 — Embedding extractive compression
-- **Status:** awaiting-approval
+- **Status:** done — embedding sentence scoring (semantic+keyword+entity/heading) + MMR-style redundancy selection; threaded model through budgeter
 - **Description:** Upgrade `compression/extractive.py` to score sentences by
   `semantic_sim + keyword_overlap + entity_bonus + heading_bonus − redundancy`; keep
   original sentences to `target_tokens`; still no LLM.
