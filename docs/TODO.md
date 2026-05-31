@@ -280,6 +280,17 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 
 ## CP-026 — Relevance-driven compression (no token target)
 - **Status:** done — keep_ratio gate (drop boilerplate, keep relevant); no target; drop block if pruned part still doesn't fit; verified on GPU
+
+## CP-027 — Within-block sentence dedup in compression
+- **Status:** done — cosine dedup of kept sentences; repeats collapse; verified (jd_full 634->47, now compressed+included)
+- **Description:** During compression, collapse near-identical sentences within a block
+  (cosine ≥ threshold) to a single copy, so repeated content doesn't bloat the kept set.
+  Refinement of ADR-019.
+- **Repo:** contextpilot · **Files:** `compression/extractive.py`, `core/config.py`,
+  `budgeting/budgeter.py`, `core/optimizer.py`
+- **Accept:** a block repeating one sentence N× keeps it once; distinct relevant
+  sentences all kept; suite green.
+- **Tests:** repeated-sentence collapse + distinct-kept. **Docs:** PROJECT_MEMORY.
 - **Description:** Compression should be driven by *relevance*, not a token target.
   Keep sentences at/above a relevance gate (relative to the block's best sentence), drop
   boilerplate/off-topic — output size is content-determined. The token budget is a hard

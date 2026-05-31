@@ -69,6 +69,7 @@ def budget_blocks(
     embedding_model: EmbeddingModel | None = None,
     relevance_floor: float = 0.0,
     compression_keep_ratio: float = 0.5,
+    compression_sentence_dedup_threshold: float = 0.95,
 ) -> BudgetOutcome:
     """Select blocks under ``budget_tokens`` (required reserved first, compress-to-fit).
 
@@ -153,6 +154,7 @@ def budget_blocks(
             compressed = compress_block(
                 block, query, embedding_model, counter=counter,
                 keep_ratio=compression_keep_ratio,
+                sentence_dedup_threshold=compression_sentence_dedup_threshold,
             )
             new_tokens = compressed.ensure_token_count(counter)
             if compressed is not block and new_tokens <= remaining:

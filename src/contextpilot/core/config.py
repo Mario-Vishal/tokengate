@@ -44,6 +44,9 @@ class OptimizerConfig:
     # Relevance-driven compression: keep sentences scoring >= ratio * best sentence
     # (drop boilerplate). No token target (ADR-019). Higher = more aggressive.
     compression_keep_ratio: float = 0.5
+    # Within-block sentence dedup during compression: collapse sentences whose cosine is
+    # at/above this to a single copy (1.0 = exact only).
+    compression_sentence_dedup_threshold: float = 0.95
     # Embedding-cosine dedup: blocks at/above this similarity are treated as duplicates.
     enable_semantic_dedup: bool = True
     semantic_dedup_threshold: float = 0.9
@@ -87,6 +90,10 @@ class OptimizerConfig:
             raise ConfigurationError("relevance_floor must be in [0.0, 1.0]")
         if not (0.0 < self.compression_keep_ratio <= 1.0):
             raise ConfigurationError("compression_keep_ratio must be in (0.0, 1.0]")
+        if not (0.0 <= self.compression_sentence_dedup_threshold <= 1.0):
+            raise ConfigurationError(
+                "compression_sentence_dedup_threshold must be in [0.0, 1.0]"
+            )
         if not (0.0 <= self.safety_margin < 1.0):
             raise ConfigurationError("safety_margin must be in [0.0, 1.0)")
 

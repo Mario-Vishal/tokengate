@@ -86,3 +86,18 @@ def test_compress_block_metadata_and_copy() -> None:
 def test_compress_block_unchanged_when_all_relevant() -> None:
     block = ContextBlock(content=_ALL_RELEVANT)
     assert compress_block(block, "resume recruiter call", _MODEL) is block
+
+
+def test_within_block_sentence_dedup_collapses_repeats() -> None:
+    # the same relevant sentence repeated 5x should collapse to one copy
+    sentence = "The required skills include python fastapi and distributed systems."
+    doc = (sentence + " ") * 5
+    out = compress_text(doc, "required skills python", _MODEL, sentence_dedup_threshold=0.95)
+    assert out.count("The required skills include") == 1
+
+
+def test_distinct_relevant_sentences_not_deduped() -> None:
+    out = compress_text(_ALL_RELEVANT, "resume recruiter call", _MODEL,
+                        keep_ratio=0.5, sentence_dedup_threshold=0.95)
+    # three distinct (non-identical) sentences -> none collapsed
+    assert out == _ALL_RELEVANT

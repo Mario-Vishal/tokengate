@@ -116,6 +116,18 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-027 done: within-block sentence dedup in compression
+- `compress_text` now collapses near-identical kept sentences (cosine ≥
+  `compression_sentence_dedup_threshold`, default 0.95) via `_dedup_sentences`, after the
+  relevance gate. Threaded keep_ratio + dedup threshold through compress_block → budgeter →
+  optimizer + config (validated).
+- Verified on GPU: the JD that repeated its skills sentence 8× collapses and is now
+  **compressed (634→47) and included** instead of dropped (68.9% saved).
+- Known limitation (logged, not a dedup bug): sentence-level extractive relevance can keep
+  a less-ideal sentence for some queries (tunable via `compression_keep_ratio`); covered
+  here because the full JD block is also included.
+- +2 tests. ruff+mypy(strict) clean; **184 passed, 4 skipped**.
+
 ### 2026-05-31 — CP-026 done: relevance-driven compression, no token target (ADR-019)
 - User: "in real life there should not be any target and forceful compression." Reworked
   `compress_text`/`compress_block`: keep sentences scoring ≥ `keep_ratio × best`

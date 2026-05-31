@@ -185,6 +185,7 @@ class ContextPilot:
                 embedding_model=embedder,
                 relevance_floor=cfg.relevance_floor,
                 compression_keep_ratio=cfg.compression_keep_ratio,
+                compression_sentence_dedup_threshold=cfg.compression_sentence_dedup_threshold,
             )
             decisions.extend(outcome.decisions)
             dropped.extend(outcome.dropped)

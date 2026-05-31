@@ -34,6 +34,7 @@ _DEFAULT_KEYWORD_WEIGHT = 0.4
 _ENTITY_BONUS = 0.1
 _HEADING_BONUS = 0.1
 _DEFAULT_KEEP_RATIO = 0.5
+_DEFAULT_SENTENCE_DEDUP_THRESHOLD = 0.95
 
 
 def split_sentences(text: str) -> list[str]:
@@ -92,33 +93,48 @@ def score_sentences(
     return scores, sent_vecs
 
 
+def _dedup_sentences(
+    kept: list[int], vecs: np.ndarray, threshold: float
+) -> list[int]:
+    """Drop later sentences that are ≥ ``threshold`` cosine to an already-kept one."""
+    final: list[int] = []
+    for i in kept:
+        if any(float(np.dot(vecs[i], vecs[j])) >= threshold for j in final):
+            continue
+        final.append(i)
+    return final
+
+
 def compress_text(
     content: str,
     query: str,
     model: EmbeddingModel,
     *,
     keep_ratio: float = _DEFAULT_KEEP_RATIO,
+    sentence_dedup_threshold: float = _DEFAULT_SENTENCE_DEDUP_THRESHOLD,
 ) -> str:
-    """Return ``content`` with low-relevance sentences dropped (relevance-driven).
+    """Return ``content`` with low-relevance and duplicate sentences dropped.
 
-    Keeps every sentence whose score is ≥ ``keep_ratio × best_sentence_score`` and drops
-    the rest, preserving original order. **No token target** (ADR-019): an all-relevant
-    block keeps all its sentences. Returns the input unchanged when it has ≤ 1 sentence,
-    when nothing scores above 0, or when no sentence would be dropped.
+    Keeps every sentence whose score is ≥ ``keep_ratio × best_sentence_score``, then
+    collapses near-identical kept sentences (cosine ≥ ``sentence_dedup_threshold``) to a
+    single copy — preserving original order. **No token target** (ADR-019). Returns the
+    input unchanged when it has ≤ 1 sentence or when nothing would be dropped.
     """
     sentences = split_sentences(content)
     if len(sentences) <= 1:
         return content
 
-    scores, _ = score_sentences(query, sentences, model)
+    scores, vecs = score_sentences(query, sentences, model)
     best = max(scores)
-    if best <= 0:  # no relevance signal at all — keep everything (can't tell)
-        return content
+    if best <= 0:  # no relevance signal — keep all by relevance, but still dedup repeats
+        kept = list(range(len(sentences)))
+    else:
+        threshold = keep_ratio * best
+        kept = [i for i, s in enumerate(scores) if s >= threshold]
+        if not kept:  # safety: keep the single best sentence
+            kept = [max(range(len(sentences)), key=lambda i: scores[i])]
 
-    threshold = keep_ratio * best
-    kept = [i for i, s in enumerate(scores) if s >= threshold]
-    if not kept:  # safety: keep the single best sentence
-        kept = [max(range(len(sentences)), key=lambda i: scores[i])]
+    kept = _dedup_sentences(kept, vecs, sentence_dedup_threshold)
     if len(kept) == len(sentences):  # nothing to drop
         return content
 
@@ -132,19 +148,23 @@ def compress_block(
     *,
     counter: TokenCounter | None = None,
     keep_ratio: float = _DEFAULT_KEEP_RATIO,
+    sentence_dedup_threshold: float = _DEFAULT_SENTENCE_DEDUP_THRESHOLD,
 ) -> ContextBlock:
     """Return a relevance-compressed copy of ``block`` (or the block unchanged).
 
-    Non-compressible blocks are returned as-is. When boilerplate is dropped, a copy is
-    returned with a recomputed ``token_count`` and audit breadcrumbs in ``metadata``.
-    Size is content-determined — there is no token target.
+    Non-compressible blocks are returned as-is. When boilerplate or duplicate sentences
+    are dropped, a copy is returned with a recomputed ``token_count`` and audit
+    breadcrumbs in ``metadata``. Size is content-determined — there is no token target.
     """
     counter = resolve_counter(counter)
     if not block.compressible:
         return block
 
     original_tokens = block.ensure_token_count(counter)
-    new_content = compress_text(block.content, query, model, keep_ratio=keep_ratio)
+    new_content = compress_text(
+        block.content, query, model,
+        keep_ratio=keep_ratio, sentence_dedup_threshold=sentence_dedup_threshold,
+    )
     if new_content == block.content:
         return block
 
