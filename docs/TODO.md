@@ -86,7 +86,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY; LIBRARY_API.
 
 ## CP-007 — Exact deduplication
-- **Status:** pending
+- **Status:** done
 - **Description:** Remove exact-content duplicate blocks (hash-based), keeping the
   highest-scored / first occurrence; record dropped duplicates for audit.
 - **Repo:** contextpilot
@@ -96,7 +96,7 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 - **Docs:** PROJECT_MEMORY.
 
 ## CP-008 — Ranking (keyword, normalize, hybrid)
-- **Status:** pending
+- **Status:** done
 - **Description:** Keyword overlap scoring vs query; min-max normalization to [0,1];
   hybrid combine of semantic + keyword via config weights → `final_score`.
 - **Repo:** contextpilot

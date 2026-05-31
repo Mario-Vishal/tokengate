@@ -71,9 +71,11 @@ Tauri, React, LanceDB, Ollama, or any local-folder logic.
       + `build_audit_report` + tests.
 - [x] CP-005 `OptimizerConfig` + strategy preset + `ConfigurationError` + tests.
       Suite at 48 passing, ruff clean.
-- [x] CP-006 token counting (heuristic + optional tiktoken) + tests. Suite **56 passing**.
-- [ ] CP-007 exact dedup → next.
-- [ ] Remaining pipeline modules (dedup, ranking, compression, budgeter, prompt) + optimizer.
+- [x] CP-006 token counting (heuristic + optional tiktoken) + tests.
+- [x] CP-007 exact dedup + tests.
+- [x] CP-008 ranking (keyword/normalize/hybrid) + tests. Suite **78 passing**.
+- [ ] CP-009 extractive compression → next.
+- [ ] CP-010 budgeter, CP-011 prompt builder, CP-012 optimizer, CP-013 hardening.
 
 ## Completed work
 
@@ -163,6 +165,17 @@ blocks producing a prompt + audit (end of library V1).
 - Verified on Python 3.14.0: `uv sync` ok (no native-wheel issues — core has 0 runtime
   deps), `import contextpilot` ok, `uv run pytest` → 2 passed.
 - Committed. Next: CP-002 (utils: errors/logging/hashing).
+
+### 2026-05-30 — CP-007 exact dedup + CP-008 ranking
+- CP-007: `deduplication/exact.py` `deduplicate_exact()` → `(kept, dropped)`;
+  collapses byte-identical content, keeps best representative (required > higher score
+  > first occurrence), preserves first-occurrence order. `tests/test_deduplication.py`.
+- CP-008: `ranking/keyword_ranker.py` (tokenize, distinct-coverage raw keyword score),
+  `ranking/score_normalizer.py` (`normalize_min_max`, safe all-equal/empty),
+  `ranking/hybrid_ranker.py` (`combine_scores` weighted avg + `rank_blocks` → sets
+  `keyword_score`/`final_score`, returns stable-sorted by `final_score`). Keyword-only
+  ranking works when no semantic score. `tests/test_ranking.py`.
+- ruff clean; `uv run pytest` → **78 passed, 1 skipped**. Next: CP-009 (compression).
 
 ### 2026-05-30 — CP-006 token counting
 - `budgeting/token_counter.py`: `TokenCounter` runtime-checkable Protocol;
