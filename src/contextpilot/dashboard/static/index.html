@@ -7,24 +7,24 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
   <style>
-    [x-cloak] { display: none !important; }
+    [x-cloak]{display:none!important}
 
-    [data-theme="dark"] {
-      --bg:#0c0d13; --surface:#13151e; --panel:#1a1c27; --border:#252837;
-      --text:#e3e6f2; --muted:#5e6378;
-      --accent:#7c6dfa; --accent2:rgba(124,109,250,.14);
-      --green:#4ade80; --green2:rgba(74,222,128,.12);
-      --yellow:#fbbf24; --yellow2:rgba(251,191,36,.12);
-      --red:#f87171; --red2:rgba(248,113,113,.12);
+    [data-theme="dark"]{
+      --bg:#0c0d13;--surface:#13151e;--panel:#1a1c27;--border:#252837;
+      --text:#e3e6f2;--muted:#5e6378;
+      --accent:#7c6dfa;--accent2:rgba(124,109,250,.14);
+      --green:#4ade80;--green2:rgba(74,222,128,.12);
+      --yellow:#fbbf24;--yellow2:rgba(251,191,36,.12);
+      --red:#f87171;--red2:rgba(248,113,113,.12);
       --shadow:0 4px 32px rgba(0,0,0,.55);
     }
-    [data-theme="light"] {
-      --bg:#f0f2f9; --surface:#ffffff; --panel:#f5f7fd; --border:#dde0ee;
-      --text:#181b2e; --muted:#8891b0;
-      --accent:#5c4fe0; --accent2:rgba(92,79,224,.1);
-      --green:#16a34a; --green2:rgba(22,163,74,.1);
-      --yellow:#d97706; --yellow2:rgba(217,119,6,.1);
-      --red:#dc2626; --red2:rgba(220,38,38,.1);
+    [data-theme="light"]{
+      --bg:#f0f2f9;--surface:#fff;--panel:#f5f7fd;--border:#dde0ee;
+      --text:#181b2e;--muted:#8891b0;
+      --accent:#5c4fe0;--accent2:rgba(92,79,224,.1);
+      --green:#16a34a;--green2:rgba(22,163,74,.1);
+      --yellow:#d97706;--yellow2:rgba(217,119,6,.1);
+      --red:#dc2626;--red2:rgba(220,38,38,.1);
       --shadow:0 4px 24px rgba(0,0,0,.08);
     }
 
@@ -32,7 +32,6 @@
     html,body{height:100%;background:var(--bg);color:var(--text);
       font-family:system-ui,-apple-system,sans-serif;font-size:14px;
       transition:background .2s,color .2s}
-
     .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
     /* topbar */
@@ -51,7 +50,7 @@
       justify-content:center;font-size:17px;transition:background .15s;color:var(--text)}
     .icon-btn:hover{background:var(--border)}
 
-    /* columns */
+    /* three-column layout */
     .columns{display:flex;flex:1;overflow:hidden}
 
     /* sidebar */
@@ -79,7 +78,7 @@
     .bm{background:var(--panel);color:var(--muted);border:1px solid var(--border)}
 
     /* queries column */
-    .q-col{width:296px;flex-shrink:0;display:flex;flex-direction:column;
+    .q-col{width:292px;flex-shrink:0;display:flex;flex-direction:column;
       border-right:1px solid var(--border);background:var(--bg);overflow:hidden}
     .q-chart-area{flex-shrink:0;padding:10px 14px 6px;border-bottom:1px solid var(--border)}
     .q-list{overflow-y:auto;flex:1;padding:10px;display:flex;flex-direction:column;gap:7px}
@@ -95,6 +94,8 @@
 
     /* detail column */
     .d-col{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+    /* single-root wrapper inside x-if — display:contents so gap/flex pass through */
+    .d-cards{display:contents}
 
     /* card */
     .card{background:var(--surface);border:1px solid var(--border);border-radius:13px;
@@ -104,8 +105,7 @@
 
     /* compare */
     .cmp{display:grid;grid-template-columns:1fr 90px 1fr;gap:12px;align-items:center}
-    .cmp-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;
-      padding:14px;text-align:center}
+    .cmp-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
     .cmp-box.hi{border-color:var(--accent)}
     .cmp-lbl{font-size:11px;color:var(--muted);margin-bottom:7px;font-weight:600;letter-spacing:.02em}
     .cmp-val{font-size:26px;font-weight:900;letter-spacing:-.03em;line-height:1}
@@ -127,8 +127,7 @@
     .dl-sub{font-size:11px;color:var(--muted);margin-top:1px}
 
     /* funnel */
-    .funnel-wrap{width:100%;overflow:visible}
-    .funnel-wrap svg{display:block;width:100%;overflow:visible}
+    .funnel-canvas{display:block;width:100%}
 
     /* block table */
     .dt{width:100%;border-collapse:collapse}
@@ -242,90 +241,89 @@
 
       <template x-if="loadingDetail"><div class="loader">Loading…</div></template>
 
+      <!-- NOTE: x-if requires exactly ONE root element — all detail cards live inside .d-cards -->
       <template x-if="detail">
+        <div class="d-cards">
 
-        <!-- raw vs optimized -->
-        <div class="card">
-          <div class="card-title">Raw Context vs ContextPilot Output</div>
-          <div class="cmp">
-            <div class="cmp-box">
-              <div class="cmp-lbl">Without ContextPilot</div>
-              <div class="cmp-val" x-text="fmtK(detail.audit.total_candidate_tokens??0)"></div>
-              <div class="cmp-sub">tokens · <span x-text="detail.audit.total_candidate_blocks??0"></span> blocks</div>
-            </div>
-            <div class="cmp-mid">
-              <div class="cmp-pct" x-text="pct(detail.audit.tokens_saved_percent??0)"></div>
-              <div class="cmp-tok" x-text="fmtK(detail.audit.tokens_saved??0)+' saved'"></div>
-            </div>
-            <div class="cmp-box hi">
-              <div class="cmp-lbl" style="color:var(--accent)">With ContextPilot</div>
-              <div class="cmp-val" style="color:var(--accent)" x-text="fmtK(detail.audit.final_prompt_tokens??0)"></div>
-              <div class="cmp-sub">
-                <span style="color:var(--green)" x-text="detail.audit.included_count??0"></span> kept ·
-                <span style="color:var(--yellow)" x-text="detail.audit.compressed_count??0"></span> compressed ·
-                <span style="color:var(--red)" x-text="detail.audit.dropped_count??0"></span> dropped
+          <!-- 1. raw vs optimized -->
+          <div class="card">
+            <div class="card-title">Raw Context vs ContextPilot Output</div>
+            <div class="cmp">
+              <div class="cmp-box">
+                <div class="cmp-lbl">Without ContextPilot</div>
+                <div class="cmp-val" x-text="fmtK(detail.audit.total_candidate_tokens??0)"></div>
+                <div class="cmp-sub">tokens · <span x-text="detail.audit.total_candidate_blocks??0"></span> blocks</div>
+              </div>
+              <div class="cmp-mid">
+                <div class="cmp-pct" x-text="pct(detail.audit.tokens_saved_percent??0)"></div>
+                <div class="cmp-tok" x-text="fmtK(detail.audit.tokens_saved??0)+' saved'"></div>
+              </div>
+              <div class="cmp-box hi">
+                <div class="cmp-lbl" style="color:var(--accent)">With ContextPilot</div>
+                <div class="cmp-val" style="color:var(--accent)" x-text="fmtK(detail.audit.final_prompt_tokens??0)"></div>
+                <div class="cmp-sub">
+                  <span style="color:var(--green)" x-text="detail.audit.included_count??0"></span> kept ·
+                  <span style="color:var(--yellow)" x-text="detail.audit.compressed_count??0"></span> compressed ·
+                  <span style="color:var(--red)" x-text="detail.audit.dropped_count??0"></span> dropped
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- token savings donut -->
-        <div class="card">
-          <div class="card-title">Token Savings</div>
-          <div class="donut-row">
-            <div class="donut-wrap">
-              <canvas id="donut-canvas" width="150" height="150"></canvas>
-              <div class="donut-center">
-                <div class="dc-pct" x-text="pct(detail.audit.tokens_saved_percent??0)"></div>
-                <div class="dc-lab">saved</div>
-              </div>
-            </div>
-            <div class="donut-legend">
-              <div class="dl-item">
-                <div class="dl-dot" style="background:var(--accent)"></div>
-                <div>
-                  <div class="dl-val" x-text="fmtK(detail.audit.final_prompt_tokens??0)+' tok'"></div>
-                  <div class="dl-sub">sent to the LLM</div>
+          <!-- 2. token savings donut -->
+          <div class="card">
+            <div class="card-title">Token Savings</div>
+            <div class="donut-row">
+              <div class="donut-wrap">
+                <canvas id="donut-canvas" width="150" height="150"></canvas>
+                <div class="donut-center">
+                  <div class="dc-pct" x-text="pct(detail.audit.tokens_saved_percent??0)"></div>
+                  <div class="dc-lab">saved</div>
                 </div>
               </div>
-              <div class="dl-item">
-                <div class="dl-dot" style="background:var(--green)"></div>
-                <div>
-                  <div class="dl-val" x-text="fmtK(detail.audit.tokens_saved??0)+' tok'"></div>
-                  <div class="dl-sub">saved by ContextPilot</div>
-                </div>
-              </div>
-              <template x-if="detail.config">
+              <div class="donut-legend">
                 <div class="dl-item">
-                  <div class="dl-dot" style="background:var(--border)"></div>
+                  <div class="dl-dot" style="background:var(--accent)"></div>
                   <div>
-                    <div class="dl-val" style="font-size:13px" x-text="detail.config.strategy??'—'"></div>
-                    <div class="dl-sub" x-text="'budget '+fmtK(detail.config.max_prompt_tokens)+' tok'"></div>
+                    <div class="dl-val" x-text="fmtK(detail.audit.final_prompt_tokens??0)+' tok'"></div>
+                    <div class="dl-sub">sent to the LLM</div>
                   </div>
                 </div>
-              </template>
+                <div class="dl-item">
+                  <div class="dl-dot" style="background:var(--green)"></div>
+                  <div>
+                    <div class="dl-val" x-text="fmtK(detail.audit.tokens_saved??0)+' tok'"></div>
+                    <div class="dl-sub">saved by ContextPilot</div>
+                  </div>
+                </div>
+                <template x-if="detail.config">
+                  <div class="dl-item">
+                    <div class="dl-dot" style="background:var(--border)"></div>
+                    <div>
+                      <div class="dl-val" style="font-size:13px" x-text="detail.config.strategy??'—'"></div>
+                      <div class="dl-sub" x-text="'budget '+fmtK(detail.config.max_prompt_tokens)+' tok'"></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- pipeline funnel — SVG trapezoids -->
-        <template x-if="detail.audit.stages && detail.audit.stages.length">
-          <div class="card">
+          <!-- 3. pipeline funnel (canvas) -->
+          <div class="card" x-show="detail.audit.stages && detail.audit.stages.length">
             <div class="card-title">Pipeline Funnel</div>
-            <div class="funnel-wrap" x-html="renderFunnel(detail.audit.stages)"></div>
+            <canvas id="funnel-canvas" class="funnel-canvas"></canvas>
           </div>
-        </template>
 
-        <!-- block decisions -->
-        <template x-if="detail.audit.decisions && detail.audit.decisions.length">
-          <div class="card">
-            <div class="card-title">Block Decisions (<span x-text="detail.audit.decisions.length"></span>)</div>
+          <!-- 4. block decisions -->
+          <div class="card" x-show="detail.audit.decisions && detail.audit.decisions.length">
+            <div class="card-title">Block Decisions (<span x-text="(detail.audit.decisions||[]).length"></span>)</div>
             <table class="dt">
               <thead>
                 <tr><th>Decision</th><th>Source</th><th>Tokens</th><th>Score</th><th>Rerank</th><th>Reason</th></tr>
               </thead>
               <tbody>
-                <template x-for="d in detail.audit.decisions" :key="d.block_id">
+                <template x-for="d in (detail.audit.decisions||[])" :key="d.block_id">
                   <tr>
                     <td><span class="chip" :class="d.decision==='included'?'ci':d.decision==='compressed'?'cc':'cd'" x-text="d.decision"></span></td>
                     <td class="mono" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="d.block_id" x-text="d.block_id"></td>
@@ -341,13 +339,13 @@
               </tbody>
             </table>
           </div>
-        </template>
 
+        </div><!-- /.d-cards -->
       </template>
-    </div><!-- /d-col -->
 
+    </div><!-- /d-col -->
   </div><!-- /columns -->
-</div>
+</div><!-- /app -->
 
 <script>
 function dashboard() {
@@ -375,7 +373,7 @@ function dashboard() {
       this.theme = this.theme === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', this.theme);
       localStorage.setItem('cp-theme', this.theme);
-      if (this.detail) this.$nextTick(() => this._renderDonut());
+      if (this.detail) this.$nextTick(() => { this._renderDonut(); this._renderFunnel(); });
       if (this.queries.length > 1) this.$nextTick(() => this._renderSessionChart());
     },
 
@@ -397,126 +395,27 @@ function dashboard() {
       this.loadingDetail = true;
       try {
         this.detail = await fetch(`/api/queries/${q.query_id}`).then(r => r.json());
-        this.$nextTick(() => this._renderDonut());
+        this.$nextTick(() => { this._renderDonut(); this._renderFunnel(); });
       } finally { this.loadingDetail = false; }
     },
 
-    // ── SVG funnel chart ────────────────────────────────────────────
-    renderFunnel(stages) {
-      if (!stages || !stages.length) return '';
-
-      // resolved colors (so SVG attrs work in both themes)
-      const cs = getComputedStyle(document.documentElement);
-      const accent  = cs.getPropertyValue('--accent').trim();
-      const muted   = cs.getPropertyValue('--muted').trim();
-      const red     = cs.getPropertyValue('--red').trim();
-      const green   = cs.getPropertyValue('--green').trim();
-      const text    = cs.getPropertyValue('--text').trim();
-      const panel   = cs.getPropertyValue('--panel').trim();
-      const surface = cs.getPropertyValue('--surface').trim();
-
-      // layout constants
-      const W        = 620;   // total viewBox width
-      const labelW   = 108;   // stage name column (right-aligned)
-      const funnelW  = 360;   // trapezoid area
-      const funnelX  = labelW + 12; // left edge of trapezoid area
-      const funnelCx = funnelX + funnelW / 2;
-      const statX    = funnelX + funnelW + 14; // right stats start
-      const rowH     = 44;    // height per stage row
-      const totalH   = stages.length * rowH;
-      const firstIn  = stages[0].blocks_in || 1;
-
-      let out = `<svg viewBox="0 0 ${W} ${totalH}" preserveAspectRatio="xMidYMid meet"
-                      xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible">`;
-
-      // gradient: accent top → slightly transparent at bottom
-      out += `<defs>
-        <linearGradient id="fg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="${accent}" stop-opacity="0.95"/>
-          <stop offset="100%" stop-color="${accent}" stop-opacity="0.70"/>
-        </linearGradient>
-        <linearGradient id="fg-drop" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="${red}" stop-opacity="0.25"/>
-          <stop offset="100%" stop-color="${red}" stop-opacity="0.10"/>
-        </linearGradient>
-      </defs>`;
-
-      stages.forEach((s, i) => {
-        // top edge = previous stage's exit width; first stage = full width
-        const prevOut  = i === 0 ? s.blocks_in : stages[i - 1].blocks_out;
-        const topW     = (prevOut / firstIn) * funnelW;
-        const botW     = (s.blocks_out / firstIn) * funnelW;
-        const y1       = i * rowH;
-        const y2       = y1 + rowH - 1;   // –1px gap between rows
-        const cy       = (y1 + y2) / 2;
-        const dropped  = s.blocks_in - s.blocks_out;
-        const pctThru  = Math.round((s.blocks_out / firstIn) * 100);
-
-        // trapezoid (main block)
-        const tl = `${funnelCx - topW/2},${y1}`;
-        const tr = `${funnelCx + topW/2},${y1}`;
-        const br = `${funnelCx + botW/2},${y2}`;
-        const bl = `${funnelCx - botW/2},${y2}`;
-        out += `<polygon points="${tl} ${tr} ${br} ${bl}" fill="url(#fg)"/>`;
-
-        // dropped wedge (right side, red-tinted) — visible when topW > botW
-        if (dropped > 0 && topW > botW) {
-          const dtr = `${funnelCx + topW/2},${y1}`;
-          const dbr = `${funnelCx + botW/2},${y2}`;
-          const dfr = `${funnelCx + funnelW/2},${y1}`;   // far right corner
-          const dfrb= `${funnelCx + funnelW/2},${y2}`;
-          // only draw if there's meaningful space
-          if (topW / 2 < funnelW / 2 - 2) {
-            out += `<polygon points="${dtr} ${dfr} ${dfrb} ${dbr}" fill="url(#fg-drop)" opacity=".5"/>`;
-          }
-        }
-
-        // stage label (left, right-aligned to funnelX)
-        out += `<text x="${funnelX - 8}" y="${cy}" text-anchor="end" dominant-baseline="middle"
-                  font-size="11" font-family="ui-monospace,monospace" fill="${muted}"
-                  xml:space="preserve">${s.stage}</text>`;
-
-        // text inside trapezoid
-        const minW = Math.min(topW, botW);
-        if (minW > 70) {
-          out += `<text x="${funnelCx}" y="${cy - 5}" text-anchor="middle" dominant-baseline="middle"
-                    font-size="11.5" font-weight="700" fill="white">${s.blocks_out} / ${s.blocks_in}</text>`;
-          out += `<text x="${funnelCx}" y="${cy + 9}" text-anchor="middle" dominant-baseline="middle"
-                    font-size="9.5" fill="rgba(255,255,255,0.70)">${pctThru}% of input</text>`;
-        } else if (minW > 30) {
-          out += `<text x="${funnelCx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
-                    font-size="10" font-weight="700" fill="white">${s.blocks_out}</text>`;
-        }
-
-        // right stats: dropped count + duration
-        if (dropped > 0) {
-          out += `<text x="${statX}" y="${cy - 6}" dominant-baseline="middle"
-                    font-size="10.5" font-weight="700" fill="${red}">−${dropped} dropped</text>`;
-        } else {
-          out += `<text x="${statX}" y="${cy - 6}" dominant-baseline="middle"
-                    font-size="10" fill="${muted}">all passed</text>`;
-        }
-        out += `<text x="${statX}" y="${cy + 9}" dominant-baseline="middle"
-                  font-size="9.5" fill="${muted}">${s.duration_ms} ms</text>`;
-
-        // thin separator line between stages
-        if (i < stages.length - 1) {
-          out += `<line x1="${funnelCx - botW/2}" y1="${y2}" x2="${funnelCx + botW/2}" y2="${y2}"
-                    stroke="rgba(0,0,0,0.18)" stroke-width="1"/>`;
-        }
-      });
-
-      out += '</svg>';
-      return out;
-    },
-
-    // ── Chart.js renders ────────────────────────────────────────────
+    // ── helpers ──────────────────────────────────────────────────────
     _css(p) { return getComputedStyle(document.documentElement).getPropertyValue(p).trim(); },
 
+    // hex "#rrggbb" → "rgba(r,g,b,a)"
+    _rgba(hex, a) {
+      const h = hex.replace('#','');
+      const r = parseInt(h.slice(0,2),16);
+      const g = parseInt(h.slice(2,4),16);
+      const b = parseInt(h.slice(4,6),16);
+      return `rgba(${r},${g},${b},${a})`;
+    },
+
+    // ── donut chart ───────────────────────────────────────────────────
     _renderDonut() {
       if (this._donutChart) { this._donutChart.destroy(); this._donutChart = null; }
       const canvas = document.getElementById('donut-canvas');
-      if (!canvas || !this.detail) return;
+      if (!canvas || !this.detail || typeof Chart === 'undefined') return;
       const sent  = this.detail.audit.final_prompt_tokens ?? 0;
       const saved = this.detail.audit.tokens_saved ?? 0;
       this._donutChart = new Chart(canvas, {
@@ -540,17 +439,144 @@ function dashboard() {
                   : ` ${ctx.raw.toLocaleString()} tok saved`,
               },
               backgroundColor: 'rgba(0,0,0,.85)', padding: 10,
-              titleFont: { size: 12 }, bodyFont: { size: 12 },
             },
           },
         },
       });
     },
 
+    // ── funnel chart (Canvas 2D, no library) ─────────────────────────
+    _renderFunnel() {
+      const canvas = document.getElementById('funnel-canvas');
+      if (!canvas || !this.detail?.audit?.stages?.length) return;
+
+      const stages   = this.detail.audit.stages;
+      const accent   = this._css('--accent');
+      const muted    = this._css('--muted');
+      const red      = this._css('--red');
+      const textClr  = this._css('--text');
+      const panelClr = this._css('--panel');
+
+      const ROW_H  = 48;
+      const dpr    = window.devicePixelRatio || 1;
+      const W      = canvas.parentElement.clientWidth || 560;
+      const H      = stages.length * ROW_H;
+
+      canvas.width  = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width  = W + 'px';
+      canvas.style.height = H + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, W, H);
+
+      // layout
+      const LABEL_W = 112;
+      const STAT_W  = 140;
+      const BAR_W   = W - LABEL_W - STAT_W - 24;
+      const BAR_X   = LABEL_W + 10;
+      const BAR_CX  = BAR_X + BAR_W / 2;
+      const STAT_X  = BAR_X + BAR_W + 12;
+
+      const firstIn = stages[0].blocks_in || 1;
+
+      stages.forEach((s, i) => {
+        const prevOut = i === 0 ? s.blocks_in : stages[i - 1].blocks_out;
+        const topW    = (prevOut / firstIn) * BAR_W;
+        const botW    = (s.blocks_out / firstIn) * BAR_W;
+        const y1      = i * ROW_H;
+        const y2      = y1 + ROW_H - 2;      // 2px gap between rows
+        const cy      = (y1 + y2) / 2;
+        const dropped = s.blocks_in - s.blocks_out;
+        const pctThru = Math.round((s.blocks_out / firstIn) * 100);
+
+        // gradient fill
+        const grad = ctx.createLinearGradient(0, y1, 0, y2);
+        grad.addColorStop(0, this._rgba(accent, 0.92));
+        grad.addColorStop(1, this._rgba(accent, 0.68));
+
+        // trapezoid
+        ctx.beginPath();
+        ctx.moveTo(BAR_CX - topW / 2, y1);
+        ctx.lineTo(BAR_CX + topW / 2, y1);
+        ctx.lineTo(BAR_CX + botW / 2, y2);
+        ctx.lineTo(BAR_CX - botW / 2, y2);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // dropped side-wedge (right, red tint)
+        if (dropped > 0 && topW > botW + 4) {
+          const wedgeGrad = ctx.createLinearGradient(0, y1, 0, y2);
+          wedgeGrad.addColorStop(0, this._rgba(red, 0.22));
+          wedgeGrad.addColorStop(1, this._rgba(red, 0.08));
+          ctx.beginPath();
+          ctx.moveTo(BAR_CX + botW / 2, y2);
+          ctx.lineTo(BAR_CX + topW / 2, y1);
+          ctx.lineTo(BAR_CX + BAR_W / 2, y1);
+          ctx.lineTo(BAR_CX + BAR_W / 2, y2);
+          ctx.closePath();
+          ctx.fillStyle = wedgeGrad;
+          ctx.fill();
+        }
+
+        // separator line between rows
+        if (i < stages.length - 1) {
+          ctx.beginPath();
+          ctx.moveTo(BAR_CX - Math.max(topW, botW) / 2, y2 + 1);
+          ctx.lineTo(BAR_CX + Math.max(topW, botW) / 2, y2 + 1);
+          ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        // stage label (left, right-aligned)
+        ctx.fillStyle = muted;
+        ctx.font = `11px ui-monospace,monospace`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(s.stage, BAR_X - 6, cy);
+
+        // text inside bar
+        const minW = Math.min(topW, botW);
+        if (minW > 80) {
+          ctx.fillStyle = 'rgba(255,255,255,0.92)';
+          ctx.font = `bold 12px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(`${s.blocks_out} / ${s.blocks_in} blocks`, BAR_CX, cy - 6);
+          ctx.fillStyle = 'rgba(255,255,255,0.65)';
+          ctx.font = `10px system-ui`;
+          ctx.fillText(`${pctThru}% of input`, BAR_CX, cy + 9);
+        } else if (minW > 32) {
+          ctx.fillStyle = 'rgba(255,255,255,0.92)';
+          ctx.font = `bold 11px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(`${s.blocks_out}`, BAR_CX, cy);
+        }
+
+        // right: dropped count + duration
+        ctx.textAlign = 'left';
+        if (dropped > 0) {
+          ctx.fillStyle = red;
+          ctx.font = `bold 11px system-ui`;
+          ctx.fillText(`−${dropped} dropped`, STAT_X, cy - 6);
+        } else {
+          ctx.fillStyle = muted;
+          ctx.font = `10px system-ui`;
+          ctx.fillText('all passed', STAT_X, cy - 6);
+        }
+        ctx.fillStyle = muted;
+        ctx.font = `10px system-ui`;
+        ctx.fillText(`${s.duration_ms} ms`, STAT_X, cy + 9);
+      });
+    },
+
+    // ── session bar chart ─────────────────────────────────────────────
     _renderSessionChart() {
       if (this._sessionChart) { this._sessionChart.destroy(); this._sessionChart = null; }
       const canvas = document.getElementById('session-chart');
-      if (!canvas || this.queries.length < 2) return;
+      if (!canvas || this.queries.length < 2 || typeof Chart === 'undefined') return;
       const accent = this._css('--accent');
       const muted  = this._css('--muted');
       this._sessionChart = new Chart(canvas, {
@@ -576,36 +602,27 @@ function dashboard() {
             },
           },
           scales: {
-            x: { grid: { display: false }, ticks: { color: muted, font: { size: 10 } }, border: { display: false } },
-            y: { display: false, min: 0, max: 100 },
+            x: { grid:{display:false}, ticks:{color:muted,font:{size:10}}, border:{display:false} },
+            y: { display:false, min:0, max:100 },
           },
         },
       });
     },
 
-    // ── formatters ──────────────────────────────────────────────────
+    // ── formatters ───────────────────────────────────────────────────
     pct(v) { return v != null ? Math.round(v) + '%' : '—'; },
     fmtK(n) {
-      if (n == null || n === 0) return '0';
+      if (!n) return '0';
       return n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(Math.round(n));
     },
     fmtTime(ts) {
       if (!ts) return '';
       const d = new Date(ts * 1000);
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-        + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' })
+        + ' · ' + d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
     },
-    savedColor(p) {
-      if (p >= 50) return 'var(--green)';
-      if (p >= 20) return 'var(--yellow)';
-      return 'var(--red)';
-    },
-    savedBadge(p) {
-      if (p == null) return 'bm';
-      if (p >= 50) return 'bg';
-      if (p >= 20) return 'by';
-      return 'br';
-    },
+    savedColor(p) { return p>=50?'var(--green)':p>=20?'var(--yellow)':'var(--red)'; },
+    savedBadge(p) { return p==null?'bm':p>=50?'bg':p>=20?'by':'br'; },
   };
 }
 </script>
