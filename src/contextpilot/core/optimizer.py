@@ -128,6 +128,8 @@ class ContextPilot:
                 block.block_id, DECISION_DROPPED, reason,
                 block.ensure_token_count(counter), 0, block.final_score,
                 rerank_score=block.rerank_score,
+                source_id=block.source_id,
+                content_preview=block.content[:300],
             ))
             dropped.append(block)
 

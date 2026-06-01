@@ -103,7 +103,9 @@ def budget_blocks(
             block,
             BlockDecision(block.block_id, DECISION_INCLUDED, "required block",
                           tokens, tokens, block.final_score,
-                          rerank_score=block.rerank_score),
+                          rerank_score=block.rerank_score,
+                          source_id=block.source_id,
+                          content_preview=block.content[:300]),
         )
 
     # (2) Fit optional blocks by value-per-token ("best set under budget", ADR-016):
@@ -126,7 +128,9 @@ def budget_blocks(
                 None,
                 BlockDecision(block.block_id, DECISION_DROPPED,
                               f"below relevance floor ({relevance_floor:.2f})",
-                              tokens, 0, score, rerank_score=block.rerank_score),
+                              tokens, 0, score, rerank_score=block.rerank_score,
+                              source_id=block.source_id,
+                              content_preview=block.content[:300]),
             )
             continue
 
@@ -138,7 +142,9 @@ def budget_blocks(
                 DECISION_INCLUDED,
                 block,
                 BlockDecision(block.block_id, DECISION_INCLUDED, "fits within budget",
-                              tokens, tokens, score, rerank_score=block.rerank_score),
+                              tokens, tokens, score, rerank_score=block.rerank_score,
+                              source_id=block.source_id,
+                              content_preview=block.content[:300]),
             )
             continue
 
@@ -165,7 +171,9 @@ def budget_blocks(
                     BlockDecision(block.block_id, DECISION_COMPRESSED,
                                   "compressed (boilerplate dropped) to fit budget",
                                   tokens, new_tokens, score,
-                                  rerank_score=block.rerank_score),
+                                  rerank_score=block.rerank_score,
+                                  source_id=block.source_id,
+                                  content_preview=compressed.content[:300]),
                 )
                 continue
 
@@ -174,7 +182,9 @@ def budget_blocks(
             None,
             BlockDecision(block.block_id, DECISION_DROPPED,
                           "exceeds remaining token budget", tokens, 0, score,
-                          rerank_score=block.rerank_score),
+                          rerank_score=block.rerank_score,
+                          source_id=block.source_id,
+                          content_preview=block.content[:300]),
         )
 
     # (3) Emit in ranked order so prompt_blocks/decisions are deterministic.

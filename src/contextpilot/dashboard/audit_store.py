@@ -82,6 +82,7 @@ class AuditStore:
         now = time()
         query_id = uuid4().hex[:16]
         audit_dict = result.audit.to_dict() if result.audit else {}
+        audit_dict["final_prompt"] = result.final_prompt
         with self._conn() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO sessions VALUES (?, ?, ?, ?)",

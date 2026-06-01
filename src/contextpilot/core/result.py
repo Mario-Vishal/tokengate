@@ -31,6 +31,12 @@ class BlockDecision:
     final_tokens: int
     score: float | None = None
     rerank_score: float | None = None
+    # Human-readable source name (e.g. filename) — shown in the dashboard instead of block_id.
+    source_id: str | None = None
+    # First 300 chars of the content that actually enters the prompt (compressed version for
+    # compressed blocks, original for included/dropped). Lets the dashboard show what was sent
+    # vs what was excluded without storing the full text in the audit.
+    content_preview: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -41,6 +47,8 @@ class BlockDecision:
             "final_tokens": self.final_tokens,
             "score": self.score,
             "rerank_score": self.rerank_score,
+            "source_id": self.source_id,
+            "content_preview": self.content_preview,
         }
 
 
