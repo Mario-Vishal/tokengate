@@ -14,6 +14,7 @@ fakes in tests, or the app's own models. No generative LLM runs here (ADR-014).
 from __future__ import annotations
 
 from contextpilot.audit.audit_report import build_audit_report
+from contextpilot.audit.stage_trace import StageTracer
 from contextpilot.budgeting.budgeter import budget_blocks
 from contextpilot.budgeting.token_counter import TokenCounter, resolve_counter
 from contextpilot.core.block import ContextBlock
@@ -62,6 +63,7 @@ class ContextPilot:
         embedding_model: EmbeddingModel | None = None,
         reranker: Reranker | None = None,
         token_counter: TokenCounter | None = None,
+        trace: bool = True,
     ) -> None:
         self.config = config or OptimizerConfig.for_strategy(
             strategy, max_prompt_tokens=max_prompt_tokens
@@ -69,6 +71,8 @@ class ContextPilot:
         self._counter = resolve_counter(self.config.token_counter or token_counter)
         self._embedding_model = embedding_model
         self._reranker = reranker
+        # Per-stage tracing (CP-028); cheap, on by default. Set trace=False to skip.
+        self._trace = trace
 
     # Models default to the BGE implementations, loaded lazily so constructing a
     # ContextPilot is cheap and weights download only on first real use.
@@ -117,6 +121,7 @@ class ContextPilot:
 
         decisions: list[BlockDecision] = []
         dropped: list[ContextBlock] = []
+        tracer = StageTracer(counter, enabled=self._trace)
 
         def drop(block: ContextBlock, reason: str) -> None:
             decisions.append(BlockDecision(
@@ -127,20 +132,21 @@ class ContextPilot:
             dropped.append(block)
 
         # (1) exact dedup
+        t = tracer.start()
         if cfg.enable_dedup:
             kept, exact_dropped = deduplicate_exact(blocks)
         else:
             kept, exact_dropped = list(blocks), []
         for b in exact_dropped:
             drop(b, "exact duplicate")
+        tracer.add("exact_dedup", before=blocks, after=kept, t0=t)
 
         if kept:
             embedder = self.embedding_model
-            # (2) reuse/compute vectors + (3) semantic scoring
+            # (2) reuse/compute vectors + (3) semantic scoring + (4) multi-signal ranking
+            t = tracer.start()
             matrix = ensure_block_vectors(kept, embedder)
             apply_semantic_scores(kept, embed_query(query, embedder), matrix)
-
-            # (4) multi-signal hybrid ranking
             ranked = rank_blocks(
                 query, kept,
                 semantic_weight=cfg.semantic_weight,
@@ -150,16 +156,20 @@ class ContextPilot:
                 token_efficiency_weight=cfg.token_efficiency_weight,
                 source_priorities=cfg.source_priorities,
             )
+            tracer.add("embed_rank", before=kept, after=ranked, t0=t)
 
             # (5) neural reranking + top-N cutoff; then let the reranker drive final_score
+            t = tracer.start()
             reranked = rerank_blocks(query, ranked, self.reranker, top_n=cfg.rerank_top_n)
             kept_ids = {id(b) for b in reranked}
             for b in ranked:
                 if id(b) not in kept_ids:
                     drop(b, "below rerank cutoff")
             apply_rerank_relevance(reranked, rerank_weight=cfg.rerank_weight)
+            tracer.add("rerank", before=ranked, after=reranked, t0=t)
 
             # (6) semantic deduplication
+            t = tracer.start()
             if cfg.enable_semantic_dedup:
                 sd = deduplicate_semantic(
                     reranked, threshold=cfg.semantic_dedup_threshold
@@ -171,11 +181,15 @@ class ContextPilot:
                 deduped = sd.kept
             else:
                 deduped = reranked
+            tracer.add("semantic_dedup", before=reranked, after=deduped, t0=t)
 
             # (7) MMR diversity ordering
+            t = tracer.start()
             selected = mmr_select(deduped, lambda_=cfg.mmr_lambda) if cfg.enable_mmr else deduped
+            tracer.add("mmr", before=deduped, after=selected, t0=t)
 
             # (8) value-per-token budgeting (compress-to-fit)
+            t = tracer.start()
             outcome = budget_blocks(
                 selected,
                 query=query,
@@ -191,6 +205,9 @@ class ContextPilot:
             dropped.extend(outcome.dropped)
             included, compressed = outcome.included, outcome.compressed
             prompt_blocks = outcome.prompt_blocks
+            # tokens_out reflects compression (used_tokens), not raw block sizes.
+            tracer.add("budget", before=selected, after=prompt_blocks, t0=t,
+                       tokens_out=outcome.used_tokens, dropped=len(outcome.dropped))
         else:
             included, compressed, prompt_blocks = [], [], []
 
@@ -211,6 +228,7 @@ class ContextPilot:
                 "reranker": rer_name,
                 "final_llm": None,  # filled in by the app
             },
+            stages=tracer.records,
         )
         log_event(_logger, "context_optimization_completed",
                   final_prompt_tokens=final_prompt_tokens,

@@ -45,6 +45,37 @@ class BlockDecision:
 
 
 @dataclass
+class StageRecord:
+    """The before/after footprint of one pipeline stage (CP-028).
+
+    The funnel the optimizer walks — exact dedup, rerank, semantic dedup, MMR,
+    budgeting — turned into one observable row per stage so applications can show
+    *what each stage took in, what it emitted, what it dropped, and how long it took*.
+    Token counts are summed over each stage's block list (``tokens_out`` reflects
+    compression at the budgeting stage).
+    """
+
+    stage: str
+    blocks_in: int
+    blocks_out: int
+    tokens_in: int
+    tokens_out: int
+    dropped: int
+    duration_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "stage": self.stage,
+            "blocks_in": self.blocks_in,
+            "blocks_out": self.blocks_out,
+            "tokens_in": self.tokens_in,
+            "tokens_out": self.tokens_out,
+            "dropped": self.dropped,
+            "duration_ms": self.duration_ms,
+        }
+
+
+@dataclass
 class AuditReport:
     """A complete, serializable explanation of one optimization run."""
 
@@ -60,6 +91,8 @@ class AuditReport:
     # Which models drove the run, e.g. {"embedding_model": "...", "reranker": "...",
     # "final_llm": None}. final_llm is filled in by the app, not the library.
     models_used: dict[str, str | None] = field(default_factory=dict)
+    # Per-stage funnel (CP-028); empty when tracing is disabled.
+    stages: list[StageRecord] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -73,6 +106,7 @@ class AuditReport:
             "dropped_count": self.dropped_count,
             "decisions": [d.to_dict() for d in self.decisions],
             "models_used": dict(self.models_used),
+            "stages": [s.to_dict() for s in self.stages],
         }
 
 
@@ -104,6 +138,7 @@ __all__ = [
     "DECISION_COMPRESSED",
     "DECISION_DROPPED",
     "BlockDecision",
+    "StageRecord",
     "AuditReport",
     "OptimizationResult",
 ]

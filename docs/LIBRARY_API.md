@@ -133,8 +133,15 @@ audit.included_count: int
 audit.compressed_count: int
 audit.dropped_count: int
 audit.decisions: list[BlockDecision]
+audit.stages: list[StageRecord]   # per-stage funnel (CP-028); empty when trace=False
 audit.to_dict() -> dict
 ```
+
+> **`StageRecord`** (`audit.stages`) — one row per pipeline stage so you can render the
+> optimization funnel: `stage` (exact_dedup / embed_rank / rerank / semantic_dedup / mmr /
+> budget), `blocks_in`, `blocks_out`, `tokens_in`, `tokens_out`, `dropped`, `duration_ms`.
+> The budget row's `tokens_out` reflects post-compression size. Tracing is on by default;
+> construct `ContextPilot(..., trace=False)` to skip it (yields an empty `stages` list).
 
 ## `BlockDecision`
 

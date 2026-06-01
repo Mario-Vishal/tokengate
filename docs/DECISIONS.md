@@ -214,3 +214,20 @@ Format: ID · Date · Status · Context · Decision · Consequences.
   blocks before dropping — not naive top-k stuffing.
 - **Consequences:** Better information density per token; more complex selection logic;
   required-over-budget behavior (ADR-009) still holds.
+
+### ADR-020 — Per-stage trace in the audit (observability)
+- **Date:** 2026-05-31 · **Status:** Accepted
+- **Context:** Consumers (Beacon's "ContextPilot Insights" dashboard, and any library
+  user) need to *see* the optimization funnel — what each stage took in, emitted, dropped,
+  and how long it took — not just the final block decisions. The block-level `decisions`
+  already explain individual fates but don't expose the stage-by-stage shape or timings.
+- **Decision:** `AuditReport` gains an optional `stages: list[StageRecord]`
+  (stage name, `blocks_in/out`, `tokens_in/out`, `dropped`, `duration_ms`), emitted by a
+  tiny `StageTracer` the optimizer feeds one row per stage (exact_dedup, embed_rank,
+  rerank, semantic_dedup, mmr, budget). Tracing is **on by default** (cheap — timing +
+  cached token sums) and disabled via `ContextPilot(..., trace=False)`. `tokens_out` for
+  the budget stage uses the post-compression `used_tokens` so the row reflects real
+  shrinkage. The field is additive/backward-compatible (empty list when disabled).
+- **Consequences:** Any caller can render or persist the funnel; negligible overhead;
+  one more public dataclass (`StageRecord`). Stage names are a soft contract — adding a
+  stage appends a row rather than breaking shape.

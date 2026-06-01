@@ -8,6 +8,20 @@ Legend per task: **Repo** = which repo · **Files** = expected changes ·
 
 ---
 
+## CP-028 — Per-stage trace in the audit (observability)
+- **Status:** done — `StageRecord` (+ `audit.stages`) emitted by `audit/stage_trace.py`
+  `StageTracer`; optimizer instruments the funnel (exact_dedup, embed_rank, rerank,
+  semantic_dedup, mmr, budget) with blocks/tokens in-out, dropped, duration_ms. On by
+  default; `ContextPilot(trace=False)` disables. 180 tests green; ruff+mypy clean. ADR-020.
+- **Repo:** contextpilot · **Files:** `core/result.py`, `audit/stage_trace.py`,
+  `audit/audit_report.py`, `core/optimizer.py`, `__init__.py`
+- **Accept:** `audit.stages` lists the funnel in order with non-negative timings; budget
+  `tokens_out` reflects compression; disabled → empty list; backward-compatible to_dict.
+- **Tests:** funnel order + rerank thinning + footprints; disable path; to_dict shape.
+- **Docs:** DECISIONS (ADR-020), TODO, PROJECT_MEMORY, LIBRARY_API.
+
+---
+
 ## CP-000 — Planning docs & repo skeleton
 - **Status:** done
 - **Description:** Initialize repo, license, gitignore, README, and all seven docs.

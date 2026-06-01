@@ -18,6 +18,7 @@ from contextpilot.core.result import (
     AuditReport,
     BlockDecision,
     OptimizationResult,
+    StageRecord,
 )
 from contextpilot.utils.errors import (
     BudgetError,
@@ -38,6 +39,7 @@ __all__ = [
     "OptimizationResult",
     "AuditReport",
     "BlockDecision",
+    "StageRecord",
     "OptimizerConfig",
     # token counting
     "TokenCounter",

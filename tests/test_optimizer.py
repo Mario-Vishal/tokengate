@@ -128,6 +128,32 @@ def test_result_is_serializable() -> None:
     assert d["query"] == "hello"
     assert d["audit"]["total_candidate_blocks"] == 1
     assert "models_used" in d["audit"]
+    assert isinstance(d["audit"]["stages"], list)
+
+
+def test_stage_trace_records_the_funnel() -> None:
+    blocks = [ContextBlock(content=f"doc {i} job search resume", token_count=10)
+              for i in range(8)]
+    result = _pilot(max_prompt_tokens=1000, strategy="speed").optimize("job search", blocks)
+    stages = result.audit.stages
+    names = [s.stage for s in stages]
+    # full funnel present, in order
+    assert names == ["exact_dedup", "embed_rank", "rerank", "semantic_dedup", "mmr", "budget"]
+    # the rerank stage thins the candidate set (speed preset rerank_top_n=5)
+    rerank = next(s for s in stages if s.stage == "rerank")
+    assert rerank.blocks_in == 8 and rerank.blocks_out <= 5
+    assert rerank.dropped == rerank.blocks_in - rerank.blocks_out
+    # every stage reports non-negative timing + token footprints
+    for s in stages:
+        assert s.duration_ms >= 0.0
+        assert s.tokens_in >= 0 and s.tokens_out >= 0
+
+
+def test_stage_trace_can_be_disabled() -> None:
+    result = _pilot(max_prompt_tokens=200, trace=False).optimize(
+        "hello", [ContextBlock(content="hello world there")]
+    )
+    assert result.audit.stages == []
 
 
 def test_deterministic_output() -> None:

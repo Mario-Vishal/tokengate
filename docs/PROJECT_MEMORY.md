@@ -116,6 +116,14 @@ mypy strict + ruff clean). Definition of Done met (see below). Ready to begin Be
 
 ## User feedback and requirements
 
+### 2026-05-31 — CP-028 done: per-stage trace in the audit (observability, ADR-020)
+- `AuditReport` gains optional `stages: list[StageRecord]` (stage, blocks_in/out,
+  tokens_in/out, dropped, duration_ms). New `audit/stage_trace.py` `StageTracer`; optimizer
+  instruments the funnel: exact_dedup → embed_rank → rerank → semantic_dedup → mmr → budget.
+  Budget `tokens_out` uses post-compression `used_tokens`. On by default; `trace=False`
+  disables. Powers Beacon's "ContextPilot Insights" dashboard. `StageRecord` exported.
+  Backward-compatible (additive to_dict key `stages`). 180 tests green; ruff+mypy clean.
+
 ### 2026-05-31 — CP-027 done: within-block sentence dedup in compression
 - `compress_text` now collapses near-identical kept sentences (cosine ≥
   `compression_sentence_dedup_threshold`, default 0.95) via `_dedup_sentences`, after the

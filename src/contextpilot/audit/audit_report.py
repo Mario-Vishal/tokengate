@@ -13,6 +13,7 @@ from contextpilot.core.result import (
     DECISION_INCLUDED,
     AuditReport,
     BlockDecision,
+    StageRecord,
 )
 
 
@@ -30,6 +31,7 @@ def build_audit_report(
     final_prompt_tokens: int,
     decisions: list[BlockDecision],
     models_used: dict[str, str | None] | None = None,
+    stages: list[StageRecord] | None = None,
 ) -> AuditReport:
     """Assemble a complete :class:`AuditReport`.
 
@@ -54,6 +56,7 @@ def build_audit_report(
         dropped_count=dropped,
         decisions=list(decisions),
         models_used=dict(models_used) if models_used else {},
+        stages=list(stages) if stages else [],
     )
 
 
