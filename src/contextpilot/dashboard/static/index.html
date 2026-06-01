@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ContextPilot Dashboard</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e0f14; --surface: #16181f; --panel: #1c1e28;
+      --border: #2a2d3a; --text: #e2e4ef; --muted: #6b7080;
+      --accent: #7c6dfa; --accent-soft: rgba(124,109,250,.14);
+      --green: #4ade80; --green-soft: rgba(74,222,128,.12);
+      --yellow: #fbbf24; --yellow-soft: rgba(251,191,36,.12);
+      --red: #f87171; --red-soft: rgba(248,113,113,.12);
+      --font: system-ui, -apple-system, sans-serif;
+      --mono: "JetBrains Mono", "Fira Code", monospace;
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
+    a { color: var(--accent); text-decoration: none; }
+
+    /* layout */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+    .topbar { display: flex; align-items: center; gap: 16px; padding: 0 24px; height: 52px;
+      background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .topbar .brand { font-weight: 700; font-size: 15px; letter-spacing: -.02em; }
+    .topbar .brand span { color: var(--accent); }
+    .stat-pill { display: flex; align-items: center; gap: 6px; padding: 3px 10px;
+      border: 1px solid var(--border); border-radius: 999px; font-size: 12px; color: var(--muted); }
+    .stat-pill b { color: var(--text); }
+    .spacer { flex: 1; }
+
+    .columns { display: flex; flex: 1; overflow: hidden; }
+
+    /* sessions sidebar */
+    .sidebar { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; background: var(--surface); overflow: hidden; }
+    .sidebar-head { padding: 14px 16px 10px; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .sidebar-list { overflow-y: auto; flex: 1; }
+    .session-row { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer;
+      transition: background .12s; }
+    .session-row:hover { background: var(--panel); }
+    .session-row.active { background: var(--accent-soft); border-left: 2px solid var(--accent); }
+    .session-id { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+    .session-meta { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; font-weight: 600; }
+    .badge-green { background: var(--green-soft); color: var(--green); }
+    .badge-yellow { background: var(--yellow-soft); color: var(--yellow); }
+    .badge-red { background: var(--red-soft); color: var(--red); }
+    .badge-muted { background: var(--panel); color: var(--muted); }
+    .mini-bar { height: 3px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+    .mini-fill { height: 100%; border-radius: 2px; background: var(--green); }
+
+    /* main content */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* queries panel */
+    .queries-panel { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .section-head { font-size: 11px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .query-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+    .query-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .query-card.active { border-color: var(--accent); background: var(--accent-soft); }
+    .query-text { font-size: 13px; font-weight: 500; margin-bottom: 8px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .query-stats { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+    .query-stats b { color: var(--text); }
+
+    /* detail panel */
+    .detail-panel { flex: 1; overflow-y: auto; padding: 20px 24px; border-left: 1px solid var(--border); }
+    .detail-panel.split { max-height: 50%; border-left: none; border-top: 1px solid var(--border); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; margin-bottom: 16px; }
+    .card-title { font-size: 11px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .kv { display: flex; flex-direction: column; gap: 3px; }
+    .kv-label { font-size: 11px; color: var(--muted); }
+    .kv-val { font-size: 18px; font-weight: 700; }
+    .kv-val.accent { color: var(--accent); }
+    .kv-val.green { color: var(--green); }
+    .kv-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .token-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-top: 8px; }
+    .token-fill { height: 100%; border-radius: 4px; background: var(--green); }
+    .token-labels { display: flex; justify-content: space-between; font-size: 11px;
+      color: var(--muted); margin-top: 4px; }
+
+    /* tables */
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em;
+      text-transform: uppercase; color: var(--muted); padding: 6px 10px;
+      border-bottom: 1px solid var(--border); }
+    td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--panel); }
+    .cell-mono { font-family: var(--mono); font-size: 11px; }
+    .cell-muted { color: var(--muted); font-size: 11px; }
+    .decision-chip { display: inline-block; padding: 1px 7px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; }
+    .d-included { background: var(--green-soft); color: var(--green); }
+    .d-compressed { background: var(--yellow-soft); color: var(--yellow); }
+    .d-dropped { background: var(--red-soft); color: var(--red); }
+
+    /* stage funnel */
+    .funnel-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; display: inline-block; }
+    .funnel-fill { height: 100%; border-radius: 3px; background: var(--accent); display: block; }
+
+    /* empty / loading */
+    .empty { padding: 48px 24px; text-align: center; color: var(--muted); }
+    .empty h2 { font-size: 15px; margin-bottom: 6px; color: var(--text); }
+    .loader { color: var(--muted); padding: 32px; text-align: center; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="app" x-data="dashboard()" x-init="init()">
+
+  <!-- top bar -->
+  <header class="topbar">
+    <div class="brand">Context<span>Pilot</span> Dashboard</div>
+    <template x-if="stats">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="stat-pill"><b x-text="stats.total_sessions"></b> sessions</div>
+        <div class="stat-pill"><b x-text="stats.total_queries"></b> queries</div>
+        <div class="stat-pill">avg <b x-text="pct(stats.avg_saved_pct)"></b> saved</div>
+        <div class="stat-pill"><b x-text="fmtK(stats.total_saved)"></b> tok saved total</div>
+      </div>
+    </template>
+    <div class="spacer"></div>
+    <div class="stat-pill" style="color:var(--muted);font-size:11px;">ContextPilot Audit Store</div>
+  </header>
+
+  <div class="columns">
+
+    <!-- sessions sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-head">Sessions (<span x-text="sessions.length"></span>)</div>
+      <div class="sidebar-list">
+        <template x-if="loadingSessions">
+          <div class="loader">Loading…</div>
+        </template>
+        <template x-if="!loadingSessions && sessions.length === 0">
+          <div class="empty"><h2>No sessions yet</h2><p>Call store.record() to log optimize() calls.</p></div>
+        </template>
+        <template x-for="s in sessions" :key="s.session_id">
+          <div class="session-row" :class="{active: activeSession === s.session_id}"
+               @click="selectSession(s)">
+            <div class="session-id" x-text="s.session_id"></div>
+            <div class="session-meta">
+              <span x-text="s.query_count + ' qs'"></span>
+              <span :class="savedBadge(s.avg_saved_pct)" class="badge" x-text="pct(s.avg_saved_pct)"></span>
+            </div>
+            <div class="mini-bar"><div class="mini-fill" :style="`width:${Math.min(100,s.avg_saved_pct)}%`"></div></div>
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <!-- queries + detail -->
+    <div class="main">
+      <!-- no session selected -->
+      <template x-if="!activeSession">
+        <div class="empty" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+          <h2>Select a session</h2>
+          <p>Click a session on the left to explore its queries.</p>
+        </div>
+      </template>
+
+      <template x-if="activeSession">
+        <div style="display:flex;flex:1;overflow:hidden;">
+
+          <!-- query list -->
+          <div style="width:360px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--border);padding:16px;">
+            <div class="section-head">Queries in session</div>
+            <template x-if="loadingQueries">
+              <div class="loader">Loading…</div>
+            </template>
+            <template x-for="q in queries" :key="q.query_id">
+              <div class="query-card" :class="{active: activeQueryId === q.query_id}" @click="selectQuery(q)">
+                <div class="query-text" x-text="q.query_text"></div>
+                <div class="query-stats">
+                  <span><b x-text="q.candidates ?? '?'"></b> cands</span>
+                  <span>→ <b x-text="fmtK(q.final_tokens ?? 0)"></b> tok</span>
+                  <span :class="savedBadge(q.saved_pct)" class="badge" x-text="pct(q.saved_pct ?? 0)"></span>
+                  <template x-if="q.strategy"><span class="badge badge-muted" x-text="q.strategy"></span></template>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- query detail -->
+          <div class="detail-panel" x-show="activeQueryId">
+            <template x-if="loadingDetail">
+              <div class="loader">Loading detail…</div>
+            </template>
+            <template x-if="detail">
+
+              <!-- summary -->
+              <div class="card">
+                <div class="card-title">Summary</div>
+                <div class="summary-grid">
+                  <div class="kv">
+                    <div class="kv-label">Tokens saved</div>
+                    <div class="kv-val green" x-text="pct(detail.audit.tokens_saved_percent ?? 0)"></div>
+                    <div class="kv-sub" x-text="fmtK(detail.audit.tokens_saved ?? 0) + ' tok'"></div>
+                  </div>
+                  <div class="kv">
+                    <div class="kv-label">Candidates → Final</div>
+                    <div class="kv-val" x-text="(detail.audit.total_candidate_blocks ?? '?') + ' blocks'"></div>
+                    <div class="kv-sub" x-text="fmtK(detail.audit.total_candidate_tokens ?? 0) + ' → ' + fmtK(detail.audit.final_prompt_tokens ?? 0) + ' tok'"></div>
+                  </div>
+                  <div class="kv">
+                    <div class="kv-label">Included / Compr / Dropped</div>
+                    <div class="kv-val" style="font-size:14px;">
+                      <span style="color:var(--green)" x-text="detail.audit.included_count ?? 0"></span> /
+                      <span style="color:var(--yellow)" x-text="detail.audit.compressed_count ?? 0"></span> /
+                      <span style="color:var(--red)" x-text="detail.audit.dropped_count ?? 0"></span>
+                    </div>
+                  </div>
+                  <template x-if="detail.config">
+                    <div class="kv">
+                      <div class="kv-label">Strategy</div>
+                      <div class="kv-val accent" style="font-size:14px;" x-text="detail.config.strategy ?? '—'"></div>
+                      <div class="kv-sub" x-text="'budget ' + fmtK(detail.config.max_prompt_tokens ?? 0) + ' tok'"></div>
+                    </div>
+                  </template>
+                  <template x-if="detail.audit.models_used">
+                    <div class="kv">
+                      <div class="kv-label">Embedding model</div>
+                      <div class="kv-val" style="font-size:11px;font-family:var(--mono);margin-top:4px;" x-text="detail.audit.models_used.embedding_model ?? '—'"></div>
+                    </div>
+                  </template>
+                </div>
+                <!-- token budget bar -->
+                <div class="token-bar" style="margin-top:16px;">
+                  <div class="token-fill" :style="`width:${Math.min(100, detail.audit.tokens_saved_percent ?? 0)}%`"></div>
+                </div>
+                <div class="token-labels">
+                  <span x-text="fmtK(detail.audit.final_prompt_tokens ?? 0) + ' tok used'"></span>
+                  <span style="color:var(--green)" x-text="pct(detail.audit.tokens_saved_percent ?? 0) + ' saved'"></span>
+                </div>
+              </div>
+
+              <!-- stage funnel -->
+              <template x-if="detail.audit.stages && detail.audit.stages.length">
+                <div class="card">
+                  <div class="card-title">Stage Funnel</div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Stage</th>
+                        <th>Blocks in→out</th>
+                        <th>Tokens in→out</th>
+                        <th>Dropped</th>
+                        <th>Duration</th>
+                        <th style="width:80px;">Throughput</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="s in detail.audit.stages" :key="s.stage">
+                        <tr>
+                          <td class="cell-mono" x-text="s.stage"></td>
+                          <td>
+                            <span x-text="s.blocks_in"></span>
+                            <span class="cell-muted"> → </span>
+                            <span x-text="s.blocks_out"></span>
+                          </td>
+                          <td>
+                            <span x-text="fmtK(s.tokens_in)"></span>
+                            <span class="cell-muted"> → </span>
+                            <span x-text="fmtK(s.tokens_out)"></span>
+                          </td>
+                          <td>
+                            <template x-if="s.dropped > 0">
+                              <span style="color:var(--red)" x-text="s.dropped"></span>
+                            </template>
+                            <template x-if="s.dropped === 0">
+                              <span class="cell-muted">—</span>
+                            </template>
+                          </td>
+                          <td class="cell-mono" x-text="s.duration_ms + ' ms'"></td>
+                          <td>
+                            <template x-if="s.blocks_in > 0">
+                              <div>
+                                <span class="funnel-bar" style="width:60px;">
+                                  <span class="funnel-fill" :style="`width:${Math.round((s.blocks_out/s.blocks_in)*100)}%`"></span>
+                                </span>
+                                <span class="cell-muted" x-text="' ' + Math.round((s.blocks_out/s.blocks_in)*100) + '%'"></span>
+                              </div>
+                            </template>
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+
+              <!-- block decisions -->
+              <template x-if="detail.audit.decisions && detail.audit.decisions.length">
+                <div class="card">
+                  <div class="card-title">Block Decisions (<span x-text="detail.audit.decisions.length"></span>)</div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Decision</th>
+                        <th>Source</th>
+                        <th>Reason</th>
+                        <th>Tokens</th>
+                        <th>Score</th>
+                        <th>Rerank</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="d in detail.audit.decisions" :key="d.block_id">
+                        <tr>
+                          <td>
+                            <span class="decision-chip"
+                                  :class="{'d-included': d.decision==='included', 'd-compressed': d.decision==='compressed', 'd-dropped': d.decision==='dropped'}"
+                                  x-text="d.decision"></span>
+                          </td>
+                          <td class="cell-mono" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                              :title="d.block_id" x-text="d.block_id"></td>
+                          <td class="cell-muted" style="max-width:240px;" x-text="d.reason"></td>
+                          <td class="cell-mono">
+                            <span x-text="d.original_tokens"></span>
+                            <template x-if="d.final_tokens !== d.original_tokens">
+                              <span class="cell-muted"> → <span x-text="d.final_tokens"></span></span>
+                            </template>
+                          </td>
+                          <td class="cell-mono" x-text="d.score != null ? d.score.toFixed(3) : '—'"></td>
+                          <td class="cell-mono" x-text="d.rerank_score != null ? d.rerank_score.toFixed(3) : '—'"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+
+            </template><!-- /detail -->
+          </div><!-- /detail-panel -->
+
+        </div>
+      </template>
+
+    </div><!-- /main -->
+  </div><!-- /columns -->
+</div><!-- /app -->
+
+<script>
+function dashboard() {
+  return {
+    stats: null,
+    sessions: [],
+    queries: [],
+    detail: null,
+    activeSession: null,
+    activeQueryId: null,
+    loadingSessions: false,
+    loadingQueries: false,
+    loadingDetail: false,
+
+    async init() {
+      this.loadingSessions = true;
+      try {
+        const [stats, sessions] = await Promise.all([
+          fetch('/api/stats').then(r => r.json()),
+          fetch('/api/sessions').then(r => r.json()),
+        ]);
+        this.stats = stats;
+        this.sessions = sessions;
+      } finally {
+        this.loadingSessions = false;
+      }
+    },
+
+    async selectSession(s) {
+      if (this.activeSession === s.session_id) return;
+      this.activeSession = s.session_id;
+      this.queries = [];
+      this.detail = null;
+      this.activeQueryId = null;
+      this.loadingQueries = true;
+      try {
+        this.queries = await fetch(`/api/sessions/${s.session_id}`).then(r => r.json());
+      } finally {
+        this.loadingQueries = false;
+      }
+    },
+
+    async selectQuery(q) {
+      if (this.activeQueryId === q.query_id) return;
+      this.activeQueryId = q.query_id;
+      this.detail = null;
+      this.loadingDetail = true;
+      try {
+        this.detail = await fetch(`/api/queries/${q.query_id}`).then(r => r.json());
+      } finally {
+        this.loadingDetail = false;
+      }
+    },
+
+    pct(v) { return v != null ? Math.round(v) + '%' : '—'; },
+    fmtK(n) { return n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(Math.round(n ?? 0)); },
+    savedBadge(pct) {
+      if (pct == null) return 'badge-muted';
+      if (pct >= 50) return 'badge-green';
+      if (pct >= 20) return 'badge-yellow';
+      return 'badge-red';
+    },
+  };
+}
+</script>
+</body>
+</html>
