@@ -130,10 +130,13 @@
     .funnel-canvas{display:block;width:100%}
 
     /* block table */
-    .dt{width:100%;border-collapse:collapse}
+    .dt{width:100%;border-collapse:collapse;table-layout:fixed}
     .dt th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;
-      text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)}
-    .dt td{padding:7px 8px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+      text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border);
+      overflow:hidden;white-space:nowrap}
+    .dt td{padding:7px 8px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle;
+      overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+    .dt td.wrap{white-space:normal;word-break:break-word}
     .dt tr:last-child td{border-bottom:none}
     .dt tr:hover td{background:var(--panel)}
     .mono{font-family:monospace;font-size:11px}
@@ -319,44 +322,47 @@
           <div class="card" x-show="detail.audit.decisions && detail.audit.decisions.length">
             <div class="card-title">Block Decisions (<span x-text="(detail.audit.decisions||[]).length"></span>)</div>
             <table class="dt">
+              <colgroup>
+                <col style="width:86px">
+                <col style="width:168px">
+                <col style="width:82px">
+                <col style="width:58px">
+                <col style="width:58px">
+                <col>
+              </colgroup>
               <thead>
                 <tr><th>Decision</th><th>Source</th><th>Tokens</th><th>Score</th><th>Rerank</th><th>Reason</th></tr>
               </thead>
-              <tbody>
-                <template x-for="d in (detail.audit.decisions||[])" :key="d.block_id">
-                  <template x-if="true">
-                    <tbody>
-                      <!-- main row -->
-                      <tr style="cursor:pointer" @click="d._open=!d._open">
-                        <td><span class="chip" :class="d.decision==='included'?'ci':d.decision==='compressed'?'cc':'cd'" x-text="d.decision"></span></td>
-                        <td style="max-width:150px">
-                          <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-                               :title="d.block_id"
-                               x-text="d.source_id || d.block_id"></div>
-                          <div class="muted" style="font-size:10px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-                               x-text="d.block_id"></div>
-                        </td>
-                        <td class="mono">
-                          <span x-text="d.original_tokens"></span>
-                          <template x-if="d.final_tokens!==d.original_tokens"><span class="muted"> → <span x-text="d.final_tokens"></span></span></template>
-                        </td>
-                        <td class="mono" x-text="d.score!=null?d.score.toFixed(3):'—'"></td>
-                        <td class="mono" x-text="d.rerank_score!=null?d.rerank_score.toFixed(3):'—'"></td>
-                        <td class="muted" style="font-size:11px;max-width:180px" x-text="d.reason"></td>
-                      </tr>
-                      <!-- expandable content preview -->
-                      <tr x-show="d._open && d.content_preview" style="display:none">
-                        <td colspan="6" style="padding:0">
-                          <div style="margin:0 8px 10px;padding:10px 13px;background:var(--panel);border-radius:8px;
-                                      font-size:11.5px;line-height:1.6;font-family:monospace;white-space:pre-wrap;
-                                      color:var(--text);border:1px solid var(--border)"
-                               x-text="d.content_preview"></div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </template>
-                </template>
-              </tbody>
+              <template x-for="d in (detail.audit.decisions||[])" :key="d.block_id">
+                <tbody>
+                  <!-- main row -->
+                  <tr style="cursor:pointer" @click="d._open=!d._open">
+                    <td><span class="chip" :class="d.decision==='included'?'ci':d.decision==='compressed'?'cc':'cd'" x-text="d.decision"></span></td>
+                    <td :title="(detail.audit.block_files||{})[d.block_id] || d.block_id">
+                      <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                           x-text="baseName((detail.audit.block_files||{})[d.block_id]) || d.source_id || d.block_id"></div>
+                      <div class="muted" style="font-size:10px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                           x-text="d.block_id"></div>
+                    </td>
+                    <td class="mono">
+                      <span x-text="d.original_tokens"></span>
+                      <template x-if="d.final_tokens!==d.original_tokens"><span class="muted"> → <span x-text="d.final_tokens"></span></span></template>
+                    </td>
+                    <td class="mono" x-text="d.score!=null?d.score.toFixed(3):'—'"></td>
+                    <td class="mono" x-text="d.rerank_score!=null?d.rerank_score.toFixed(3):'—'"></td>
+                    <td class="muted wrap" style="font-size:11px" x-text="d.reason"></td>
+                  </tr>
+                  <!-- expandable content preview -->
+                  <tr x-show="d._open && d.content_preview" style="display:none">
+                    <td colspan="6" style="padding:0">
+                      <div style="margin:0 8px 10px;padding:10px 13px;background:var(--panel);border-radius:8px;
+                                  font-size:11.5px;line-height:1.6;font-family:monospace;white-space:pre-wrap;
+                                  color:var(--text);border:1px solid var(--border)"
+                           x-text="d.content_preview"></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </template>
             </table>
             <div style="margin-top:10px;font-size:11px;color:var(--muted)">Click a row to expand its content preview.</div>
           </div>
@@ -653,6 +659,7 @@ function dashboard() {
     },
     savedColor(p) { return p>=50?'var(--green)':p>=20?'var(--yellow)':'var(--red)'; },
     savedBadge(p) { return p==null?'bm':p>=50?'bg':p>=20?'by':'br'; },
+    baseName(p) { return p ? p.replace(/\\/g,'/').replace(/\/$/, '').split('/').pop() : ''; },
   };
 }
 </script>
