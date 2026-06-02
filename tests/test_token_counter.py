@@ -6,8 +6,8 @@ import importlib.util
 
 import pytest
 
-from contextpilot import HeuristicTokenCounter, TokenCounter
-from contextpilot.budgeting.token_counter import TiktokenCounter, resolve_counter
+from tokengate import HeuristicTokenCounter, TokenCounter
+from tokengate.budgeting.token_counter import TiktokenCounter, resolve_counter
 
 
 def test_heuristic_satisfies_protocol() -> None:
@@ -48,7 +48,7 @@ def test_resolve_counter_passes_through() -> None:
     reason="tiktoken IS installed; this test covers the missing-dependency path",
 )
 def test_tiktoken_missing_raises_clear_error() -> None:
-    with pytest.raises(ImportError, match="contextpilot\\[tiktoken\\]"):
+    with pytest.raises(ImportError, match="tokengate\\[tiktoken\\]"):
         TiktokenCounter()
 
 

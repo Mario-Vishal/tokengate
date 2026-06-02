@@ -10,7 +10,7 @@ import sys
 
 
 def test_python_is_312() -> None:
-    assert sys.version_info[:2] == (3, 12), "contextpilot targets Python 3.12 (ADR-012)"
+    assert sys.version_info[:2] == (3, 12), "tokengate targets Python 3.12 (ADR-012)"
 
 
 def test_core_ml_deps_import() -> None:

@@ -1,4 +1,4 @@
-"""Tests for the ContextPilot audit dashboard (CP-029)."""
+"""Tests for the TokenGate audit dashboard (CP-029)."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from contextpilot import ContextBlock, ContextPilot
-from contextpilot.dashboard import AuditStore
-from contextpilot.models.fakes import FakeEmbeddingModel, FakeReranker
+from tokengate import TokenBlock, TokenGate
+from tokengate.dashboard import AuditStore
+from tokengate.models.fakes import FakeEmbeddingModel, FakeReranker
 
 
 @pytest.fixture()
@@ -18,8 +18,8 @@ def store(tmp_path: Path) -> AuditStore:
 
 
 @pytest.fixture()
-def pilot() -> ContextPilot:
-    return ContextPilot(
+def pilot() -> TokenGate:
+    return TokenGate(
         max_prompt_tokens=512,
         strategy="balanced",
         embedding_model=FakeEmbeddingModel(dim=64),
@@ -27,13 +27,13 @@ def pilot() -> ContextPilot:
     )
 
 
-def _block(text: str, bid: str = "b") -> ContextBlock:
-    return ContextBlock(content=text, block_id=bid, source_id="src", semantic_score=0.8)
+def _block(text: str, bid: str = "b") -> TokenBlock:
+    return TokenBlock(content=text, block_id=bid, source_id="src", semantic_score=0.8)
 
 
 # --- AuditStore ---
 
-def test_record_and_retrieve(store: AuditStore, pilot: ContextPilot) -> None:
+def test_record_and_retrieve(store: AuditStore, pilot: TokenGate) -> None:
     result = pilot.optimize("what is python?", [_block("Python is a language", "b1")])
     qid = store.record("s1", "what is python?", result, config={"strategy": "balanced"})
     assert isinstance(qid, str) and len(qid) == 16
@@ -53,7 +53,7 @@ def test_global_stats_empty(store: AuditStore) -> None:
     assert stats["total_queries"] == 0
 
 
-def test_global_stats_after_records(store: AuditStore, pilot: ContextPilot) -> None:
+def test_global_stats_after_records(store: AuditStore, pilot: TokenGate) -> None:
     for i in range(3):
         result = pilot.optimize(f"q{i}", [_block(f"block content {i}", f"b{i}")])
         store.record("sess-a", f"q{i}", result)
@@ -62,7 +62,7 @@ def test_global_stats_after_records(store: AuditStore, pilot: ContextPilot) -> N
     assert stats["total_queries"] == 3
 
 
-def test_sessions_list(store: AuditStore, pilot: ContextPilot) -> None:
+def test_sessions_list(store: AuditStore, pilot: TokenGate) -> None:
     result = pilot.optimize("hello", [_block("hi there", "b1")])
     store.record("sess-1", "hello", result)
     result2 = pilot.optimize("world", [_block("world content", "b2")])
@@ -73,7 +73,7 @@ def test_sessions_list(store: AuditStore, pilot: ContextPilot) -> None:
     assert ids == {"sess-1", "sess-2"}
 
 
-def test_session_queries(store: AuditStore, pilot: ContextPilot) -> None:
+def test_session_queries(store: AuditStore, pilot: TokenGate) -> None:
     for q in ["q1", "q2", "q3"]:
         result = pilot.optimize(q, [_block(f"content for {q}", "b")])
         store.record("sess-x", q, result)
@@ -86,7 +86,7 @@ def test_query_detail_not_found(store: AuditStore) -> None:
     assert store.query_detail("nonexistent") is None
 
 
-def test_same_session_upserted(store: AuditStore, pilot: ContextPilot) -> None:
+def test_same_session_upserted(store: AuditStore, pilot: TokenGate) -> None:
     """Multiple records to the same session update last_seen, don't duplicate the session."""
     for i in range(5):
         result = pilot.optimize(f"q{i}", [_block("x", "b")])
@@ -96,7 +96,7 @@ def test_same_session_upserted(store: AuditStore, pilot: ContextPilot) -> None:
     assert sessions[0]["query_count"] == 5
 
 
-def test_audit_has_stages(store: AuditStore, pilot: ContextPilot) -> None:
+def test_audit_has_stages(store: AuditStore, pilot: TokenGate) -> None:
     """Stored audit includes stage trace when trace=True (default)."""
     result = pilot.optimize("find python", [_block("Python docs", "b1"), _block("Java docs", "b2")])
     qid = store.record("s", "find python", result)
@@ -109,10 +109,10 @@ def test_audit_has_stages(store: AuditStore, pilot: ContextPilot) -> None:
 
 # --- FastAPI server (no uvicorn needed; uses TestClient) ---
 
-def test_api_endpoints(store: AuditStore, pilot: ContextPilot) -> None:
+def test_api_endpoints(store: AuditStore, pilot: TokenGate) -> None:
     try:
         from fastapi.testclient import TestClient
-        from contextpilot.dashboard.server import create_app
+        from tokengate.dashboard.server import create_app
     except ImportError:
         pytest.skip("fastapi not installed (dashboard extra not present)")
 
@@ -156,4 +156,4 @@ def test_api_endpoints(store: AuditStore, pilot: ContextPilot) -> None:
     # index.html
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "ContextPilot" in resp.text
+    assert "TokenGate" in resp.text

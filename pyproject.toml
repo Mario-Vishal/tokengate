@@ -1,12 +1,12 @@
 [project]
-name = "contextpilot"
+name = "tokengate"
 version = "0.1.0"
 description = "Reusable, app-agnostic context optimization for LLM applications: include, drop, compress, rank, and budget context with a full audit trail."
 readme = "README.md"
 license = { file = "LICENSE" }
 # Pinned to 3.12 for reliable ML wheels (torch/sentence-transformers) — ADR-012.
 requires-python = ">=3.12,<3.13"
-authors = [{ name = "ContextPilot Authors" }]
+authors = [{ name = "TokenGate Authors" }]
 keywords = ["llm", "context", "optimization", "rag", "prompt", "tokens", "embeddings", "reranker"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -29,12 +29,12 @@ tiktoken = ["tiktoken>=0.7"]
 # BGE-M3 sparse + multi-vector (ColBERT) modes — future enhancement (ADR-013).
 flag = ["FlagEmbedding>=1.2"]
 # Audit dashboard: AuditStore + serve_dashboard() + CLI (CP-029, ADR-021).
-# Core stays pure; this extra adds web deps. Install with: pip install contextpilot[dashboard]
+# Core stays pure; this extra adds web deps. Install with: pip install tokengate[dashboard]
 dashboard = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 
 [project.urls]
-Homepage = "https://github.com/Mario-Vishal/contextpilot"
-Repository = "https://github.com/Mario-Vishal/contextpilot"
+Homepage = "https://github.com/Mario-Vishal/tokengate"
+Repository = "https://github.com/Mario-Vishal/tokengate"
 
 [dependency-groups]
 dev = [
@@ -62,7 +62,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/contextpilot"]
+packages = ["src/tokengate"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -77,7 +77,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.12"
-packages = ["contextpilot"]
+packages = ["tokengate"]
 strict = true
 
 # ML libraries without (complete) type stubs.

@@ -1,7 +1,7 @@
-"""Baseline-vs-ContextPilot token-savings benchmark (CP-024).
+"""Baseline-vs-TokenGate token-savings benchmark (CP-024).
 
 Demonstrates the core value: instead of stuffing every retrieved chunk into the prompt
-(the "baseline"), ContextPilot ranks/dedups/compresses/budgets and sends far fewer
+(the "baseline"), TokenGate ranks/dedups/compresses/budgets and sends far fewer
 tokens, with an audit. Uses the deterministic fake models so it runs instantly offline
 and focuses on the *token-efficiency* story (model-quality benchmarking is future work).
 
@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from contextpilot import ContextBlock, ContextPilot, HeuristicTokenCounter
-from contextpilot.models import FakeEmbeddingModel, FakeReranker
-from contextpilot.prompts.prompt_builder import build_prompt
+from tokengate import TokenBlock, TokenGate, HeuristicTokenCounter
+from tokengate.models import FakeEmbeddingModel, FakeReranker
+from tokengate.prompts.prompt_builder import build_prompt
 
 _COUNTER = HeuristicTokenCounter()
 _QUERY = "Summarize documents about my Cisco job search and list next action items."
@@ -39,22 +39,22 @@ _NOISE = [
 ]
 
 
-def _make_blocks() -> list[ContextBlock]:
-    blocks: list[ContextBlock] = []
+def _make_blocks() -> list[TokenBlock]:
+    blocks: list[TokenBlock] = []
     for i, text in enumerate(_RELEVANT):
-        blocks.append(ContextBlock(content=text, source_id="downloads", block_id=f"rel-{i}"))
+        blocks.append(TokenBlock(content=text, source_id="downloads", block_id=f"rel-{i}"))
     for i, text in enumerate(_NOISE):
-        blocks.append(ContextBlock(content=text, source_id="downloads", block_id=f"noise-{i}"))
+        blocks.append(TokenBlock(content=text, source_id="downloads", block_id=f"noise-{i}"))
     return blocks
 
 
-def _baseline_tokens(query: str, blocks: list[ContextBlock]) -> int:
+def _baseline_tokens(query: str, blocks: list[TokenBlock]) -> int:
     """Naive RAG: stuff every candidate block into the prompt."""
     return _COUNTER.count(build_prompt(query, blocks))
 
 
-def _pilot(strategy: str) -> ContextPilot:
-    return ContextPilot(
+def _pilot(strategy: str) -> TokenGate:
+    return TokenGate(
         max_prompt_tokens=1024,
         strategy=strategy,
         embedding_model=FakeEmbeddingModel(dim=256),
@@ -68,7 +68,7 @@ def main() -> None:
     baseline = _baseline_tokens(_QUERY, blocks)
 
     lines = [
-        "# ContextPilot benchmark — baseline vs neural (fake models)",
+        "# TokenGate benchmark — baseline vs neural (fake models)",
         "",
         f"- Query: `{_QUERY}`",
         f"- Candidate blocks: **{len(blocks)}**  ·  Baseline (stuff-all) prompt tokens: "

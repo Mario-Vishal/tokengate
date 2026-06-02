@@ -1,21 +1,21 @@
-"""CP-012/CP-023 tests: ContextPilot.optimize() full neural pipeline (with fakes)."""
+"""CP-012/CP-023 tests: TokenGate.optimize() full neural pipeline (with fakes)."""
 
 from __future__ import annotations
 
 import pytest
 
-from contextpilot import (
-    ContextBlock,
-    ContextPilot,
+from tokengate import (
+    TokenBlock,
+    TokenGate,
     InvalidBlockError,
     OptimizationResult,
 )
-from contextpilot.models import FakeEmbeddingModel, FakeReranker
+from tokengate.models import FakeEmbeddingModel, FakeReranker
 
 
-def _pilot(**kwargs: object) -> ContextPilot:
-    """ContextPilot wired with deterministic fakes (no model downloads)."""
-    return ContextPilot(
+def _pilot(**kwargs: object) -> TokenGate:
+    """TokenGate wired with deterministic fakes (no model downloads)."""
+    return TokenGate(
         embedding_model=FakeEmbeddingModel(dim=128),
         reranker=FakeReranker(),
         **kwargs,  # type: ignore[arg-type]
@@ -31,11 +31,11 @@ def test_empty_blocks_returns_query_only_prompt() -> None:
 
 def test_end_to_end_includes_relevant_drops_irrelevant() -> None:
     blocks = [
-        ContextBlock(content="System: answer concisely.", block_type="system",
+        TokenBlock(content="System: answer concisely.", block_type="system",
                      required=True, cacheable=True, compressible=False, token_count=8),
-        ContextBlock(content="Resume notes about the 2026 job search and resume tips.",
+        TokenBlock(content="Resume notes about the 2026 job search and resume tips.",
                      source_id="file:resume.pdf", token_count=12),
-        ContextBlock(content="Unrelated grocery list bananas milk eggs bread",
+        TokenBlock(content="Unrelated grocery list bananas milk eggs bread",
                      source_id="file:notes.txt", token_count=12, compressible=False),
     ]
     result = _pilot(max_prompt_tokens=30).optimize("job search resume", blocks)
@@ -49,7 +49,7 @@ def test_end_to_end_includes_relevant_drops_irrelevant() -> None:
 
 def test_audit_counts_reconcile_with_candidates() -> None:
     blocks = [
-        ContextBlock(content=f"doc number {i} about topic alpha beta", token_count=20)
+        TokenBlock(content=f"doc number {i} about topic alpha beta", token_count=20)
         for i in range(6)
     ]
     result = _pilot(max_prompt_tokens=60).optimize("topic alpha", blocks)
@@ -61,8 +61,8 @@ def test_audit_counts_reconcile_with_candidates() -> None:
 
 def test_exact_duplicates_dropped_and_audited() -> None:
     blocks = [
-        ContextBlock(content="identical text here", token_count=10),
-        ContextBlock(content="identical text here", token_count=10),
+        TokenBlock(content="identical text here", token_count=10),
+        TokenBlock(content="identical text here", token_count=10),
     ]
     result = _pilot(max_prompt_tokens=1000).optimize("text", blocks)
     assert len(result.included_blocks) == 1
@@ -70,14 +70,14 @@ def test_exact_duplicates_dropped_and_audited() -> None:
 
 
 def test_required_kept_even_when_over_budget() -> None:
-    blocks = [ContextBlock(content="huge required system block", required=True, token_count=500)]
+    blocks = [TokenBlock(content="huge required system block", required=True, token_count=500)]
     result = _pilot(max_prompt_tokens=50).optimize("q", blocks)
     assert len(result.included_blocks) == 1
     assert result.dropped_blocks == []
 
 
 def test_optional_blocks_respect_budget() -> None:
-    blocks = [ContextBlock(content=f"chunk topic {i}", token_count=40) for i in range(5)]
+    blocks = [TokenBlock(content=f"chunk topic {i}", token_count=40) for i in range(5)]
     pilot = _pilot(max_prompt_tokens=100)
     result = pilot.optimize("chunk topic", blocks)
     in_prompt = result.included_blocks + result.compressed_blocks
@@ -86,7 +86,7 @@ def test_optional_blocks_respect_budget() -> None:
 
 def test_audit_records_models_used() -> None:
     result = _pilot(max_prompt_tokens=200).optimize(
-        "hello", [ContextBlock(content="hello world there")]
+        "hello", [TokenBlock(content="hello world there")]
     )
     mu = result.audit.models_used
     assert mu["embedding_model"] == "FakeEmbeddingModel"
@@ -96,14 +96,14 @@ def test_audit_records_models_used() -> None:
 
 def test_decisions_carry_rerank_score() -> None:
     result = _pilot(max_prompt_tokens=500).optimize(
-        "job search", [ContextBlock(content="job search resume content here")]
+        "job search", [TokenBlock(content="job search resume content here")]
     )
     inc = next(d for d in result.audit.decisions if d.decision == "included")
     assert inc.rerank_score is not None
 
 
 def test_rerank_cutoff_drops_recorded() -> None:
-    blocks = [ContextBlock(content=f"doc {i} job search", token_count=10) for i in range(8)]
+    blocks = [TokenBlock(content=f"doc {i} job search", token_count=10) for i in range(8)]
     result = _pilot(max_prompt_tokens=1000, strategy="speed").optimize("job search", blocks)
     # speed preset rerank_top_n=5 -> at least 3 dropped below cutoff
     cutoff = [d for d in result.audit.decisions if d.reason == "below rerank cutoff"]
@@ -122,7 +122,7 @@ def test_non_block_in_list_raises() -> None:
 
 def test_result_is_serializable() -> None:
     result = _pilot(max_prompt_tokens=200).optimize(
-        "hello", [ContextBlock(content="hello world")]
+        "hello", [TokenBlock(content="hello world")]
     )
     d = result.to_dict()
     assert d["query"] == "hello"
@@ -132,7 +132,7 @@ def test_result_is_serializable() -> None:
 
 
 def test_stage_trace_records_the_funnel() -> None:
-    blocks = [ContextBlock(content=f"doc {i} job search resume", token_count=10)
+    blocks = [TokenBlock(content=f"doc {i} job search resume", token_count=10)
               for i in range(8)]
     result = _pilot(max_prompt_tokens=1000, strategy="speed").optimize("job search", blocks)
     stages = result.audit.stages
@@ -151,15 +151,15 @@ def test_stage_trace_records_the_funnel() -> None:
 
 def test_stage_trace_can_be_disabled() -> None:
     result = _pilot(max_prompt_tokens=200, trace=False).optimize(
-        "hello", [ContextBlock(content="hello world there")]
+        "hello", [TokenBlock(content="hello world there")]
     )
     assert result.audit.stages == []
 
 
 def test_deterministic_output() -> None:
     make = lambda: [  # noqa: E731
-        ContextBlock(content="job search resume tips", token_count=10),
-        ContextBlock(content="weather report today sunny", token_count=10),
+        TokenBlock(content="job search resume tips", token_count=10),
+        TokenBlock(content="weather report today sunny", token_count=10),
     ]
     r1 = _pilot(max_prompt_tokens=200).optimize("job search", make())
     r2 = _pilot(max_prompt_tokens=200).optimize("job search", make())
@@ -167,7 +167,7 @@ def test_deterministic_output() -> None:
 
 
 def test_strategy_presets_differ() -> None:
-    from contextpilot import OptimizerConfig
+    from tokengate import OptimizerConfig
 
     speed = OptimizerConfig.for_strategy("speed")
     quality = OptimizerConfig.for_strategy("quality")

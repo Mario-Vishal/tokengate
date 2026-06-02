@@ -7,7 +7,7 @@ import os
 import numpy as np
 import pytest
 
-from contextpilot.models import (
+from tokengate.models import (
     EmbeddingModel,
     FakeEmbeddingModel,
     FakeReranker,
@@ -88,7 +88,7 @@ def test_fake_rerank_empty_inputs() -> None:
     reason="set CONTEXTPILOT_TEST_REAL_MODELS=1 to run real BGE model tests (downloads weights)",
 )
 def test_real_bge_embedder_and_reranker() -> None:
-    from contextpilot.models.bge import BGEM3Embedder, BGEReranker
+    from tokengate.models.bge import BGEM3Embedder, BGEReranker
 
     emb = BGEM3Embedder()
     assert emb.dim == 1024

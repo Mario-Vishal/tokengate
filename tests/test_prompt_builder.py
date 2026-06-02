@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from contextpilot import ContextBlock
-from contextpilot.prompts.prompt_builder import build_prompt
+from tokengate import TokenBlock
+from tokengate.prompts.prompt_builder import build_prompt
 
 
 def test_query_always_present() -> None:
@@ -13,8 +13,8 @@ def test_query_always_present() -> None:
 
 def test_cacheable_ordered_before_context() -> None:
     blocks = [
-        ContextBlock(content="DOC CHUNK", source_id="f1"),
-        ContextBlock(content="SYSTEM RULES", cacheable=True),
+        TokenBlock(content="DOC CHUNK", source_id="f1"),
+        TokenBlock(content="SYSTEM RULES", cacheable=True),
     ]
     prompt = build_prompt("q", blocks)
     assert prompt.index("SYSTEM RULES") < prompt.index("Context:")
@@ -23,19 +23,19 @@ def test_cacheable_ordered_before_context() -> None:
 
 
 def test_source_annotation_present_when_available() -> None:
-    prompt = build_prompt("q", [ContextBlock(content="text", source_id="file:resume.pdf")])
+    prompt = build_prompt("q", [TokenBlock(content="text", source_id="file:resume.pdf")])
     assert "(source: file:resume.pdf)" in prompt
 
 
 def test_no_source_annotation_when_absent() -> None:
-    prompt = build_prompt("q", [ContextBlock(content="text")])
+    prompt = build_prompt("q", [TokenBlock(content="text")])
     assert "(source:" not in prompt
 
 
 def test_context_blocks_numbered_in_order() -> None:
     blocks = [
-        ContextBlock(content="first", block_id="1"),
-        ContextBlock(content="second", block_id="2"),
+        TokenBlock(content="first", block_id="1"),
+        TokenBlock(content="second", block_id="2"),
     ]
     prompt = build_prompt("q", blocks)
     assert "[1]" in prompt and "[2]" in prompt
@@ -45,14 +45,14 @@ def test_context_blocks_numbered_in_order() -> None:
 
 def test_deterministic() -> None:
     blocks = [
-        ContextBlock(content="SYS", cacheable=True),
-        ContextBlock(content="ctx", source_id="s"),
+        TokenBlock(content="SYS", cacheable=True),
+        TokenBlock(content="ctx", source_id="s"),
     ]
     assert build_prompt("q", blocks) == build_prompt("q", blocks)
 
 
 def test_only_cacheable_no_context_section() -> None:
-    prompt = build_prompt("q", [ContextBlock(content="SYS ONLY", cacheable=True)])
+    prompt = build_prompt("q", [TokenBlock(content="SYS ONLY", cacheable=True)])
     assert "Context:" not in prompt
     assert "SYS ONLY" in prompt
     assert prompt.endswith("Question: q")
@@ -60,7 +60,7 @@ def test_only_cacheable_no_context_section() -> None:
 
 def test_custom_labels() -> None:
     prompt = build_prompt(
-        "q", [ContextBlock(content="c")], context_header="Sources", query_label="Query"
+        "q", [TokenBlock(content="c")], context_header="Sources", query_label="Query"
     )
     assert "Sources:" in prompt
     assert "Query: q" in prompt

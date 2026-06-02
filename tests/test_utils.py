@@ -4,31 +4,31 @@ from __future__ import annotations
 
 import logging
 
-import contextpilot
-from contextpilot.utils.errors import (
+import tokengate
+from tokengate.utils.errors import (
     BudgetError,
-    ContextPilotError,
+    TokenGateError,
     InvalidBlockError,
     OptimizationError,
 )
-from contextpilot.utils.hashing import (
+from tokengate.utils.hashing import (
     block_id_from_content,
     hash_content,
     short_hash,
 )
-from contextpilot.utils.logging import get_logger, log_event
+from tokengate.utils.logging import get_logger, log_event
 
 # --- errors ---------------------------------------------------------------
 
 def test_error_hierarchy() -> None:
     for exc in (InvalidBlockError, BudgetError, OptimizationError):
-        assert issubclass(exc, ContextPilotError)
-    assert issubclass(ContextPilotError, Exception)
+        assert issubclass(exc, TokenGateError)
+    assert issubclass(TokenGateError, Exception)
 
 
 def test_errors_exported_at_top_level() -> None:
-    assert contextpilot.ContextPilotError is ContextPilotError
-    assert contextpilot.InvalidBlockError is InvalidBlockError
+    assert tokengate.TokenGateError is TokenGateError
+    assert tokengate.InvalidBlockError is InvalidBlockError
 
 
 # --- hashing --------------------------------------------------------------
@@ -59,7 +59,7 @@ def test_block_id_format_and_stability() -> None:
 
 def test_get_logger_namespacing_and_nullhandler() -> None:
     logger = get_logger("ranking")
-    assert logger.name == "contextpilot.ranking"
+    assert logger.name == "tokengate.ranking"
     assert any(isinstance(h, logging.NullHandler) for h in logger.handlers)
     # idempotent: calling again doesn't stack handlers
     n_before = len(logger.handlers)
@@ -70,7 +70,7 @@ def test_get_logger_namespacing_and_nullhandler() -> None:
 def test_log_event_attaches_structured_fields(caplog) -> None:
     logger = get_logger("test")
     logger.propagate = True  # let caplog capture despite NullHandler
-    with caplog.at_level(logging.INFO, logger="contextpilot.test"):
+    with caplog.at_level(logging.INFO, logger="tokengate.test"):
         log_event(logger, "thing_happened", duration_ms=12, status="ok")
     rec = next(r for r in caplog.records if r.getMessage() == "thing_happened")
     assert rec.event == "thing_happened"

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from contextpilot import AuditReport, BlockDecision, ContextBlock, OptimizationResult
-from contextpilot.audit.audit_report import build_audit_report
-from contextpilot.core.result import (
+from tokengate import AuditReport, BlockDecision, TokenBlock, OptimizationResult
+from tokengate.audit.audit_report import build_audit_report
+from tokengate.core.result import (
     DECISION_COMPRESSED,
     DECISION_DROPPED,
     DECISION_INCLUDED,
@@ -83,7 +83,7 @@ def test_audit_report_to_dict_roundtrip_shape() -> None:
 
 
 def test_optimization_result_to_dict() -> None:
-    blk = ContextBlock(content="hello")
+    blk = TokenBlock(content="hello")
     audit = build_audit_report(
         total_candidate_blocks=1,
         total_candidate_tokens=10,

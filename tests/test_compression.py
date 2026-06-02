@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from contextpilot import ContextBlock, HeuristicTokenCounter
-from contextpilot.compression.extractive import (
+from tokengate import TokenBlock, HeuristicTokenCounter
+from tokengate.compression.extractive import (
     compress_block,
     compress_text,
     score_sentences,
     split_sentences,
 )
-from contextpilot.models import FakeEmbeddingModel
+from tokengate.models import FakeEmbeddingModel
 
 _COUNTER = HeuristicTokenCounter()
 _MODEL = FakeEmbeddingModel(dim=256)
@@ -68,12 +68,12 @@ def test_no_token_target_param() -> None:
 
 
 def test_compress_block_non_compressible_unchanged() -> None:
-    block = ContextBlock(content=_DOC, compressible=False)
+    block = TokenBlock(content=_DOC, compressible=False)
     assert compress_block(block, "job search", _MODEL) is block
 
 
 def test_compress_block_metadata_and_copy() -> None:
-    block = ContextBlock(content=_DOC, block_id="orig")
+    block = TokenBlock(content=_DOC, block_id="orig")
     result = compress_block(block, "job search resume recruiter", _MODEL, counter=_COUNTER)
     assert result is not block
     assert result.metadata["compressed"] is True
@@ -84,7 +84,7 @@ def test_compress_block_metadata_and_copy() -> None:
 
 
 def test_compress_block_unchanged_when_all_relevant() -> None:
-    block = ContextBlock(content=_ALL_RELEVANT)
+    block = TokenBlock(content=_ALL_RELEVANT)
     assert compress_block(block, "resume recruiter call", _MODEL) is block
 
 

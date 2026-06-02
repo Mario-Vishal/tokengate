@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from contextpilot import ConfigurationError, OptimizerConfig
-from contextpilot.core.config import STRATEGY_BALANCED
+from tokengate import ConfigurationError, OptimizerConfig
+from tokengate.core.config import STRATEGY_BALANCED
 
 
 def test_defaults_are_balanced() -> None:

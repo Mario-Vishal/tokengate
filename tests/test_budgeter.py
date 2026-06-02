@@ -4,22 +4,22 @@ from __future__ import annotations
 
 import pytest
 
-from contextpilot import ContextBlock, HeuristicTokenCounter
-from contextpilot.budgeting.budgeter import budget_blocks
-from contextpilot.core.result import (
+from tokengate import TokenBlock, HeuristicTokenCounter
+from tokengate.budgeting.budgeter import budget_blocks
+from tokengate.core.result import (
     DECISION_COMPRESSED,
     DECISION_DROPPED,
     DECISION_INCLUDED,
 )
-from contextpilot.models import FakeEmbeddingModel
-from contextpilot.utils.errors import BudgetError
+from tokengate.models import FakeEmbeddingModel
+from tokengate.utils.errors import BudgetError
 
 _COUNTER = HeuristicTokenCounter()
 
 
 def _block(bid: str, tokens: int, *, score: float, required=False, compressible=False):
     # Fixed token_count makes budgeting deterministic regardless of content.
-    return ContextBlock(
+    return TokenBlock(
         content=f"content for {bid}",
         block_id=bid,
         token_count=tokens,
@@ -88,7 +88,7 @@ def test_compression_to_fit_included_as_compressed() -> None:
         "The cafeteria menu changes every Friday without fail. "
         "Please water the office plants at least once per week."
     )
-    big = ContextBlock(content=doc, block_id="big", final_score=0.9, compressible=True)
+    big = TokenBlock(content=doc, block_id="big", final_score=0.9, compressible=True)
     full_tokens = _COUNTER.count(doc)
     budget = full_tokens - 10  # forces it not to fit as-is
 
@@ -138,7 +138,7 @@ def test_relevance_floor_zero_disabled() -> None:
 
 def test_non_compressible_over_budget_is_dropped_not_compressed() -> None:
     doc = "one. two. three. four. five. six. seven. eight."
-    block = ContextBlock(content=doc, block_id="nc", final_score=0.9, compressible=False)
+    block = TokenBlock(content=doc, block_id="nc", final_score=0.9, compressible=False)
     budget = _COUNTER.count(doc) - 2
     out = budget_blocks([block], query="three", budget_tokens=budget, counter=_COUNTER)
     assert [b.block_id for b in out.dropped] == ["nc"]

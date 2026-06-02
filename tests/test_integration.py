@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from contextpilot import ContextBlock, ContextPilot
+from tokengate import TokenBlock, TokenGate
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("CONTEXTPILOT_TEST_REAL_MODELS") != "1",
@@ -18,23 +18,23 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _workspace_blocks() -> list[ContextBlock]:
+def _workspace_blocks() -> list[TokenBlock]:
     return [
-        ContextBlock(
+        TokenBlock(
             content="Cisco Software Engineer job description. Responsibilities include "
             "building distributed systems and evaluating ML models.",
             source_id="downloads", token_count=None,
         ),
-        ContextBlock(
+        TokenBlock(
             content="Mario's resume: experience with Python, FastAPI, and AI systems; "
             "actively in a 2026 job search.",
             source_id="downloads",
         ),
-        ContextBlock(
+        TokenBlock(
             content="Grocery receipt: bananas, milk, eggs, bread. Total $12.34.",
             source_id="downloads",
         ),
-        ContextBlock(
+        TokenBlock(
             content="Recruiter email: please send your updated resume by Friday and "
             "schedule a screening call next week.",
             source_id="downloads",
@@ -43,7 +43,7 @@ def _workspace_blocks() -> list[ContextBlock]:
 
 
 def test_real_neural_pipeline_end_to_end() -> None:
-    pilot = ContextPilot(max_prompt_tokens=512, strategy="balanced")
+    pilot = TokenGate(max_prompt_tokens=512, strategy="balanced")
     result = pilot.optimize("What should I do next for my job search?", _workspace_blocks())
 
     assert result.final_prompt.strip()
@@ -60,10 +60,10 @@ def test_real_neural_pipeline_end_to_end() -> None:
 
 def test_real_quality_preset_keeps_more_context() -> None:
     blocks = _workspace_blocks()
-    quality = ContextPilot(max_prompt_tokens=512, strategy="quality").optimize(
+    quality = TokenGate(max_prompt_tokens=512, strategy="quality").optimize(
         "job search", blocks
     )
-    speed = ContextPilot(max_prompt_tokens=512, strategy="speed").optimize(
+    speed = TokenGate(max_prompt_tokens=512, strategy="speed").optimize(
         "job search", [b.copy() for b in blocks]
     )
     # both produce valid prompts + audits with the real models

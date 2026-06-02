@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import importlib
 
-import contextpilot
+import tokengate
 
 
 def test_version_exposed() -> None:
-    assert isinstance(contextpilot.__version__, str)
-    assert contextpilot.__version__
+    assert isinstance(tokengate.__version__, str)
+    assert tokengate.__version__
 
 
 def test_all_subpackages_import() -> None:
@@ -23,4 +23,4 @@ def test_all_subpackages_import() -> None:
         "audit",
         "utils",
     ):
-        importlib.import_module(f"contextpilot.{sub}")
+        importlib.import_module(f"tokengate.{sub}")

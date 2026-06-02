@@ -1,9 +1,9 @@
-# ContextPilot
+# TokenGate
 
-**ContextPilot** is a production-grade, neural context-optimization library for LLM applications. Given a user query and a pool of candidate context blocks, it decides what to **include, compress, deduplicate, rank, and budget** before sending a prompt to an LLM. Every decision is recorded in a full audit report.
+**TokenGate** is a production-grade, neural context-optimization library for LLM applications. Given a user query and a pool of candidate context blocks, it decides what to **include, compress, deduplicate, rank, and budget** before sending a prompt to an LLM. Every decision is recorded in a full audit report.
 
 [![python](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
-[![version](https://img.shields.io/badge/version-v0.2.0-green)](https://github.com/Mario-Vishal/contextpilot)
+[![version](https://img.shields.io/badge/version-v0.2.0-green)](https://github.com/Mario-Vishal/tokengate)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ---
@@ -12,7 +12,7 @@
 
 The naive approach is to stuff every retrieved chunk into the prompt. That wastes tokens, degrades answer quality, and gives you zero visibility into *why* the model saw what it saw.
 
-ContextPilot turns context assembly into a transparent, testable **neural pipeline**:
+TokenGate turns context assembly into a transparent, testable **neural pipeline**:
 
 - Every block passes through embedding-based ranking, cross-encoder reranking, semantic deduplication, extractive compression, and value-per-token budgeting.
 - A full audit report shows exactly what was kept, compressed, or dropped and why.
@@ -23,13 +23,13 @@ ContextPilot turns context assembly into a transparent, testable **neural pipeli
 ## Install
 
 ```bash
-pip install git+https://github.com/Mario-Vishal/contextpilot.git
+pip install git+https://github.com/Mario-Vishal/tokengate.git
 ```
 
 With the optional standalone dashboard:
 
 ```bash
-pip install "git+https://github.com/Mario-Vishal/contextpilot.git#egg=contextpilot[dashboard]"
+pip install "git+https://github.com/Mario-Vishal/tokengate.git#egg=tokengate[dashboard]"
 ```
 
 > **First run downloads models.** BGE-M3 (embedder) and BGE-Reranker-v2-m3 (cross-encoder) are fetched from Hugging Face on first use (around 1-2 GB total) and cached locally. Requires Python 3.12 and PyTorch.
@@ -39,14 +39,14 @@ pip install "git+https://github.com/Mario-Vishal/contextpilot.git#egg=contextpil
 ## Quickstart
 
 ```python
-from contextpilot import ContextPilot, ContextBlock
+from tokengate import TokenGate, TokenBlock
 
-pilot = ContextPilot(strategy="balanced")   # speed / balanced / quality / max_compression
+pilot = TokenGate(strategy="balanced")   # speed / balanced / quality / max_compression
 
 blocks = [
-    ContextBlock(content="FastAPI is a modern Python web framework...", semantic_score=0.85),
-    ContextBlock(content="Grocery list: bananas, milk, eggs...",        semantic_score=0.12),
-    ContextBlock(content="FastAPI handles async requests efficiently...", semantic_score=0.79),
+    TokenBlock(content="FastAPI is a modern Python web framework...", semantic_score=0.85),
+    TokenBlock(content="Grocery list: bananas, milk, eggs...",        semantic_score=0.12),
+    TokenBlock(content="FastAPI handles async requests efficiently...", semantic_score=0.79),
     # ... up to thousands of candidates
 ]
 
@@ -109,7 +109,7 @@ for decision in result.audit.decisions:
 Install with GPU support (CUDA 12.8):
 
 ```bash
-pip install git+https://github.com/Mario-Vishal/contextpilot.git
+pip install git+https://github.com/Mario-Vishal/tokengate.git
 pip install torch --index-url https://download.pytorch.org/whl/cu128
 ```
 
@@ -118,18 +118,18 @@ pip install torch --index-url https://download.pytorch.org/whl/cu128
 ## Strategies
 
 ```python
-ContextPilot(strategy="speed")            # fast: skip reranker, loose dedup
-ContextPilot(strategy="balanced")         # default: full pipeline, balanced weights
-ContextPilot(strategy="quality")          # aggressive reranking + tighter dedup
-ContextPilot(strategy="max_compression")  # maximum token savings
+TokenGate(strategy="speed")            # fast: skip reranker, loose dedup
+TokenGate(strategy="balanced")         # default: full pipeline, balanced weights
+TokenGate(strategy="quality")          # aggressive reranking + tighter dedup
+TokenGate(strategy="max_compression")  # maximum token savings
 ```
 
 Override individual parameters:
 
 ```python
-from contextpilot.core.config import OptimizerConfig
+from tokengate.core.config import OptimizerConfig
 
-pilot = ContextPilot(
+pilot = TokenGate(
     config=OptimizerConfig.for_strategy(
         "balanced",
         max_prompt_tokens=8192,
@@ -146,7 +146,7 @@ pilot = ContextPilot(
 ## Bring your own models
 
 ```python
-from contextpilot.models import EmbeddingModel, Reranker
+from tokengate.models import EmbeddingModel, Reranker
 import numpy as np
 
 class MyEmbedder(EmbeddingModel):
@@ -155,7 +155,7 @@ class MyEmbedder(EmbeddingModel):
 class MyReranker(Reranker):
     def rerank(self, query: str, texts: list[str]) -> list[float]: ...
 
-pilot = ContextPilot(embedding_model=MyEmbedder(), reranker=MyReranker())
+pilot = TokenGate(embedding_model=MyEmbedder(), reranker=MyReranker())
 ```
 
 ---
@@ -165,22 +165,22 @@ pilot = ContextPilot(embedding_model=MyEmbedder(), reranker=MyReranker())
 Install the `[dashboard]` extra to get a local web UI for exploring audit history:
 
 ```bash
-pip install "git+https://github.com/Mario-Vishal/contextpilot.git#egg=contextpilot[dashboard]"
+pip install "git+https://github.com/Mario-Vishal/tokengate.git#egg=tokengate[dashboard]"
 ```
 
 Record audits from your app:
 
 ```python
-from contextpilot.dashboard import AuditStore
+from tokengate.dashboard import AuditStore
 
-store = AuditStore()   # SQLite in ~/.contextpilot/audits.db by default
+store = AuditStore()   # SQLite in ~/.tokengate/audits.db by default
 store.record(session_id="my-session", query=query, result=result)
 ```
 
 Launch the dashboard:
 
 ```bash
-python -m contextpilot.dashboard   # opens http://localhost:8765
+python -m tokengate.dashboard   # opens http://localhost:8765
 ```
 
 The dashboard shows per-session and per-query breakdowns: token savings, a pipeline funnel with blocks in/out per stage, per-block decisions with content previews, and the full final prompt sent to the LLM.
@@ -192,8 +192,8 @@ The dashboard shows per-session and per-query breakdowns: token savings, a pipel
 This project uses [**uv**](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/Mario-Vishal/contextpilot.git
-cd contextpilot
+git clone https://github.com/Mario-Vishal/tokengate.git
+cd tokengate
 uv sync                      # install all deps into a Python 3.12 venv
 uv run pytest                # 195 tests
 uv run ruff check src tests  # lint
