@@ -1,6 +1,6 @@
 # ContextPilot
 
-**ContextPilot** is a production-grade, neural context-optimization library for LLM applications. Given a user query and a pool of candidate context blocks (retrieved chunks, documents, notes), it decides what to **include, compress, deduplicate, rank, and budget** before a prompt is sent to an LLM. It also produces a full **audit report** explaining every decision.
+**ContextPilot** is a production-grade, neural context-optimization library for LLM applications. Given a user query and a pool of candidate context blocks, it decides what to **include, compress, deduplicate, rank, and budget** before sending a prompt to an LLM. Every decision is recorded in a full audit report.
 
 [![python](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
 [![version](https://img.shields.io/badge/version-v0.2.0-green)](https://github.com/Mario-Vishal/contextpilot)
@@ -10,9 +10,9 @@
 
 ## Why
 
-LLM context windows are finite and expensive. The naive approach is to stuff every retrieved chunk into the prompt, which wastes tokens, degrades answer quality, and gives you zero visibility into *why* the model saw what it saw.
+The naive approach is to stuff every retrieved chunk into the prompt. That wastes tokens, degrades answer quality, and gives you zero visibility into *why* the model saw what it saw.
 
-ContextPilot turns context assembly into an explicit, testable, auditable **neural pipeline**:
+ContextPilot turns context assembly into a transparent, testable **neural pipeline**:
 
 - Every block passes through embedding-based ranking, cross-encoder reranking, semantic deduplication, extractive compression, and value-per-token budgeting.
 - A full audit report shows exactly what was kept, compressed, or dropped and why.
@@ -20,13 +20,23 @@ ContextPilot turns context assembly into an explicit, testable, auditable **neur
 
 ---
 
-## Quickstart
+## Install
 
 ```bash
-pip install contextpilot
+pip install git+https://github.com/Mario-Vishal/contextpilot.git
+```
+
+With the optional standalone dashboard:
+
+```bash
+pip install "git+https://github.com/Mario-Vishal/contextpilot.git#egg=contextpilot[dashboard]"
 ```
 
 > **First run downloads models.** BGE-M3 (embedder) and BGE-Reranker-v2-m3 (cross-encoder) are fetched from Hugging Face on first use (around 1-2 GB total) and cached locally. Requires Python 3.12 and PyTorch.
+
+---
+
+## Quickstart
 
 ```python
 from contextpilot import ContextPilot, ContextBlock
@@ -40,46 +50,49 @@ blocks = [
     # ... up to thousands of candidates
 ]
 
-result = pilot.optimize(query="How does FastAPI handle async requests?", blocks=blocks)
+result = pilot.optimize(
+    query="How does FastAPI handle async requests?",
+    blocks=blocks,
+)
 
-print(result.final_prompt)        # ready to send to any LLM
-print(result.audit.tokens_saved)  # tokens eliminated by the pipeline
-print(result.audit.tokens_saved_percent)  # e.g. 74.3 (%)
+print(result.final_prompt)               # ready to send to any LLM
+print(result.audit.tokens_saved)         # tokens cut by the pipeline
+print(result.audit.tokens_saved_percent) # e.g. 74.3 (%)
 
 for decision in result.audit.decisions:
     print(decision.block_id, decision.decision, decision.reason)
-# → "abc123" "included"   "high rerank score + within budget"
-# → "def456" "dropped"    "semantic duplicate of abc123"
-# → "ghi789" "compressed" "relevance-pruned from 312 to 48 tokens"
+# "abc123"  included    high rerank score + within budget
+# "def456"  dropped     semantic duplicate of abc123
+# "ghi789"  compressed  relevance-pruned from 312 to 48 tokens
 ```
 
 ---
 
-## How it works
+## Pipeline
 
 ```
-candidate blocks
-        |
-        v
- 1. exact dedup          remove identical content
- 2. BGE-M3 embed         reuse provided vectors or compute new ones
- 3. hybrid rank          semantic + keyword + recency + source priority
- 4. BGE rerank           cross-encoder scores per (query, chunk) pair
- 5. relevance floor      drop clearly off-topic blocks
- 6. semantic dedup       collapse near-paraphrases using cosine threshold
- 7. extractive compress  keep only query-relevant sentences per block
- 8. MMR selection        diversity-aware final set
- 9. token budget         value-per-token greedy fit
-10. prompt build         cacheable sections first, query last
-11. audit                per-block decisions, per-stage trace, token math
-        |
-        v
- OptimizationResult
-   .final_prompt          assembled prompt string
-   .included_blocks       full blocks kept
-   .compressed_blocks     blocks with sentences pruned
-   .dropped_blocks        blocks that didn't make it
-   .audit                 AuditReport with per-stage and per-block detail
+  candidate blocks
+         |
+         v
+  1.  exact dedup          remove identical content
+  2.  BGE-M3 embed         reuse provided vectors or compute new ones
+  3.  hybrid rank          semantic + keyword + recency + source priority
+  4.  BGE rerank           cross-encoder score per (query, chunk) pair
+  5.  relevance floor      drop clearly off-topic blocks
+  6.  semantic dedup       collapse near-paraphrases by cosine threshold
+  7.  extractive compress  keep only query-relevant sentences per block
+  8.  MMR selection        diversity-aware final set
+  9.  token budget         value-per-token greedy fit
+  10. prompt build         cacheable sections first, query last
+  11. audit                per-block decisions, per-stage trace, token math
+         |
+         v
+  OptimizationResult
+    .final_prompt       assembled prompt string, ready for any LLM
+    .included_blocks    full blocks kept
+    .compressed_blocks  blocks with sentences pruned
+    .dropped_blocks     blocks that didn't make it
+    .audit              AuditReport with per-stage and per-block detail
 ```
 
 ---
@@ -91,51 +104,24 @@ candidate blocks
 | **Python 3.12** | Pinned for ML wheel compatibility |
 | **PyTorch** | GPU optional, CPU fallback is automatic |
 | `sentence-transformers` | Loads `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3` |
-| NVIDIA GPU (optional) | Speeds up embedding and reranking, not required |
+| NVIDIA GPU (optional) | Speeds up embedding and reranking |
 
 Install with GPU support (CUDA 12.8):
 
 ```bash
-pip install contextpilot
+pip install git+https://github.com/Mario-Vishal/contextpilot.git
 pip install torch --index-url https://download.pytorch.org/whl/cu128
 ```
-
----
-
-## Standalone dashboard (optional)
-
-The `[dashboard]` extra adds a local web UI to explore optimization audit history:
-
-```bash
-pip install "contextpilot[dashboard]"
-```
-
-To record audits from your app:
-
-```python
-from contextpilot.dashboard import AuditStore
-
-store = AuditStore()   # SQLite in ~/.contextpilot/audits.db by default
-store.record(session_id="my-session", query=query, result=result)
-```
-
-Then launch the dashboard:
-
-```bash
-python -m contextpilot.dashboard   # opens http://localhost:8765
-```
-
-The dashboard shows per-session and per-query breakdowns including token savings, a pipeline funnel with blocks in/out per stage, per-block decisions with content previews, and the full final prompt sent to the LLM.
 
 ---
 
 ## Strategies
 
 ```python
-ContextPilot(strategy="speed")           # fast: skip reranker, loose dedup
-ContextPilot(strategy="balanced")        # default: full pipeline, balanced weights
-ContextPilot(strategy="quality")         # aggressive reranking + tighter dedup
-ContextPilot(strategy="max_compression") # maximum token savings
+ContextPilot(strategy="speed")            # fast: skip reranker, loose dedup
+ContextPilot(strategy="balanced")         # default: full pipeline, balanced weights
+ContextPilot(strategy="quality")          # aggressive reranking + tighter dedup
+ContextPilot(strategy="max_compression")  # maximum token savings
 ```
 
 Override individual parameters:
@@ -161,6 +147,7 @@ pilot = ContextPilot(
 
 ```python
 from contextpilot.models import EmbeddingModel, Reranker
+import numpy as np
 
 class MyEmbedder(EmbeddingModel):
     def embed(self, texts: list[str]) -> np.ndarray: ...
@@ -173,6 +160,33 @@ pilot = ContextPilot(embedding_model=MyEmbedder(), reranker=MyReranker())
 
 ---
 
+## Standalone dashboard
+
+Install the `[dashboard]` extra to get a local web UI for exploring audit history:
+
+```bash
+pip install "git+https://github.com/Mario-Vishal/contextpilot.git#egg=contextpilot[dashboard]"
+```
+
+Record audits from your app:
+
+```python
+from contextpilot.dashboard import AuditStore
+
+store = AuditStore()   # SQLite in ~/.contextpilot/audits.db by default
+store.record(session_id="my-session", query=query, result=result)
+```
+
+Launch the dashboard:
+
+```bash
+python -m contextpilot.dashboard   # opens http://localhost:8765
+```
+
+The dashboard shows per-session and per-query breakdowns: token savings, a pipeline funnel with blocks in/out per stage, per-block decisions with content previews, and the full final prompt sent to the LLM.
+
+---
+
 ## Development
 
 This project uses [**uv**](https://docs.astral.sh/uv/).
@@ -180,16 +194,16 @@ This project uses [**uv**](https://docs.astral.sh/uv/).
 ```bash
 git clone https://github.com/Mario-Vishal/contextpilot.git
 cd contextpilot
-uv sync                     # install all deps (Python 3.12 venv)
-uv run pytest               # 195 tests
-uv run ruff check src tests # lint
-uv run mypy src             # strict type check
+uv sync                      # install all deps into a Python 3.12 venv
+uv run pytest                # 195 tests
+uv run ruff check src tests  # lint
+uv run mypy src              # strict type check
 ```
 
-GPU integration tests (requires real models):
+GPU integration tests (requires real models on first run):
 
 ```bash
-uv run pytest -m gpu        # downloads BGE models on first run
+uv run pytest -m gpu
 ```
 
 ---
