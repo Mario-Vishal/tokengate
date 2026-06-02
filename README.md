@@ -197,12 +197,9 @@ uv run pytest -m gpu        # downloads BGE models on first run
 
 | Doc | Purpose |
 |---|---|
-| [`docs/PROJECT_MEMORY.md`](docs/PROJECT_MEMORY.md) | Living source of truth — updated every session |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Module layout and data flow |
 | [`docs/LIBRARY_API.md`](docs/LIBRARY_API.md) | Full public API reference |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Architecture Decision Records (ADR-001 → ADR-021) |
-| [`docs/V2_DESIGN.md`](docs/V2_DESIGN.md) | Neural engine design doc |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Versioned roadmap |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Module layout and data flow (contributor reference) |
 
 ---
 
