@@ -193,16 +193,6 @@ uv run pytest -m gpu        # downloads BGE models on first run
 
 ---
 
-## Documentation
-
-| Doc | Purpose |
-|---|---|
-| [`docs/LIBRARY_API.md`](docs/LIBRARY_API.md) | Full public API reference |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Versioned roadmap |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Module layout and data flow (contributor reference) |
-
----
-
 ## License
 
 [MIT](LICENSE)
