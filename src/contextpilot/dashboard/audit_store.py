@@ -173,6 +173,64 @@ class AuditStore:
             """).fetchone()
         return dict(row) if row else {}
 
+    def sync_from_beacon_db(self, beacon_db_path: str | Path) -> int:
+        """Import missing audit records from a Beacon beacon.db into this store.
+
+        Reads ``audit_history`` + ``chat_sessions`` + ``chat_messages`` from the Beacon
+        SQLite DB and inserts any query_ids not already present. Safe to call repeatedly
+        (INSERT OR IGNORE). Returns the number of new queries inserted.
+        """
+        beacon_db_path = Path(beacon_db_path)
+        if not beacon_db_path.exists():
+            return 0
+
+        src = sqlite3.connect(str(beacon_db_path))
+        src.row_factory = sqlite3.Row
+        rows = src.execute("""
+            SELECT
+                cs.session_id,
+                cs.created_at          AS session_ts,
+                cm_a.created_at        AS query_ts,
+                ah.audit_id            AS query_id,
+                ah.audit_json,
+                (
+                    SELECT content FROM chat_messages
+                    WHERE session_id = cs.session_id AND role = 'user'
+                      AND created_at <= cm_a.created_at
+                    ORDER BY created_at DESC LIMIT 1
+                ) AS query_text
+            FROM audit_history ah
+            JOIN chat_messages cm_a ON cm_a.message_id = ah.message_id
+            JOIN chat_sessions cs    ON cs.session_id  = cm_a.session_id
+            ORDER BY cs.created_at, cm_a.created_at
+        """).fetchall()
+        src.close()
+
+        inserted = 0
+        with self._conn() as conn:
+            for row in rows:
+                r = dict(row)
+                if not r.get("query_text"):
+                    continue
+                conn.execute(
+                    "INSERT OR IGNORE INTO sessions VALUES (?, ?, ?, ?)",
+                    (r["session_id"], r["session_ts"], r["session_ts"], None),
+                )
+                conn.execute(
+                    "UPDATE sessions SET last_seen = MAX(last_seen, ?) WHERE session_id = ?",
+                    (r["query_ts"], r["session_id"]),
+                )
+                if not conn.execute(
+                    "SELECT 1 FROM queries WHERE query_id = ?", (r["query_id"],)
+                ).fetchone():
+                    conn.execute(
+                        "INSERT INTO queries VALUES (?, ?, ?, ?, ?, ?)",
+                        (r["query_id"], r["session_id"], r["query_ts"],
+                         r["query_text"], r["audit_json"], None),
+                    )
+                    inserted += 1
+        return inserted
+
     def serve_dashboard(
         self,
         port: int = 8080,
