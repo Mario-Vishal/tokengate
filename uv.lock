@@ -220,60 +220,6 @@ wheels = [
 ]
 
 [[package]]
-name = "contextpilot"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "numpy" },
-    { name = "sentence-transformers" },
-    { name = "torch" },
-]
-
-[package.optional-dependencies]
-dashboard = [
-    { name = "fastapi" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-flag = [
-    { name = "flagembedding" },
-]
-tiktoken = [
-    { name = "tiktoken" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", marker = "extra == 'dashboard'", specifier = ">=0.110" },
-    { name = "flagembedding", marker = "extra == 'flag'", specifier = ">=1.2" },
-    { name = "numpy", specifier = ">=1.26" },
-    { name = "sentence-transformers", specifier = ">=3.0" },
-    { name = "tiktoken", marker = "extra == 'tiktoken'", specifier = ">=0.7" },
-    { name = "torch", specifier = ">=2.2", index = "https://download.pytorch.org/whl/cu128" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'dashboard'", specifier = ">=0.29" },
-]
-provides-extras = ["tiktoken", "flag", "dashboard"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "fastapi", specifier = ">=0.110" },
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "ruff", specifier = ">=0.6" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
-]
-
-[[package]]
 name = "cuda-bindings"
 version = "12.9.7"
 source = { registry = "https://pypi.org/simple" }
@@ -1515,6 +1461,60 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/dc/9dafec002c2d4424378563cf4cf5c7fb93631d2a55013c8b87554ee4012c/tiktoken-0.13.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:2c397ddda233208345b01bd30f2fca79ff730e55731d0108a603f9bc57f6af3b", size = 1181954, upload-time = "2026-05-15T04:50:36.99Z" },
     { url = "https://files.pythonhosted.org/packages/a1/d0/1f8578c45b2f24759b46f0b50d31878c63c73e6bf0f2227e10ec5c5408dc/tiktoken-0.13.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:95097e4f89b06403976e498abf61a0ee73a7497e73fb599cb211d8197a054d91", size = 1240069, upload-time = "2026-05-15T04:50:38.221Z" },
     { url = "https://files.pythonhosted.org/packages/aa/90/28d7f154888610aa9237e541986beb62b479df29d193a5a0617dbb1514d0/tiktoken-0.13.0-cp312-cp312-win_amd64.whl", hash = "sha256:8f2d16e7a7c783ad81f36e457d046d1f1c8af70b22aec8a13238efe531977c41", size = 874748, upload-time = "2026-05-15T04:50:39.587Z" },
+]
+
+[[package]]
+name = "tokengate"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "numpy" },
+    { name = "sentence-transformers" },
+    { name = "torch" },
+]
+
+[package.optional-dependencies]
+dashboard = [
+    { name = "fastapi" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+flag = [
+    { name = "flagembedding" },
+]
+tiktoken = [
+    { name = "tiktoken" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", marker = "extra == 'dashboard'", specifier = ">=0.110" },
+    { name = "flagembedding", marker = "extra == 'flag'", specifier = ">=1.2" },
+    { name = "numpy", specifier = ">=1.26" },
+    { name = "sentence-transformers", specifier = ">=3.0" },
+    { name = "tiktoken", marker = "extra == 'tiktoken'", specifier = ">=0.7" },
+    { name = "torch", specifier = ">=2.2", index = "https://download.pytorch.org/whl/cu128" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'dashboard'", specifier = ">=0.29" },
+]
+provides-extras = ["tiktoken", "flag", "dashboard"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "fastapi", specifier = ">=0.110" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "ruff", specifier = ">=0.6" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
 ]
 
 [[package]]

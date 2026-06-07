@@ -7,9 +7,9 @@ import logging
 import tokengate
 from tokengate.utils.errors import (
     BudgetError,
-    TokenGateError,
     InvalidBlockError,
     OptimizationError,
+    TokenGateError,
 )
 from tokengate.utils.hashing import (
     block_id_from_content,

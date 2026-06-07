@@ -23,9 +23,9 @@ from tokengate.core.result import (
 from tokengate.utils.errors import (
     BudgetError,
     ConfigurationError,
-    TokenGateError,
     InvalidBlockError,
     OptimizationError,
+    TokenGateError,
 )
 
 __version__ = "0.1.0"

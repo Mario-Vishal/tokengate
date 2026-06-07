@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from tokengate import TokenBlock, InvalidBlockError
+from tokengate import InvalidBlockError, TokenBlock
 from tokengate.models import FakeEmbeddingModel, embed_query, ensure_block_vectors
 
 # --- TokenBlock.vector field -------------------------------------------

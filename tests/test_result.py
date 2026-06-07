@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tokengate import AuditReport, BlockDecision, TokenBlock, OptimizationResult
+from tokengate import AuditReport, BlockDecision, OptimizationResult, TokenBlock
 from tokengate.audit.audit_report import build_audit_report
 from tokengate.core.result import (
     DECISION_COMPRESSED,

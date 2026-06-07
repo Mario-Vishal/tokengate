@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tokengate import TokenBlock, InvalidBlockError
+from tokengate import InvalidBlockError, TokenBlock
 
 
 class _FakeCounter:
