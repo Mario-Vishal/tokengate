@@ -29,6 +29,12 @@ from tokengate.ranking.keyword_ranker import query_terms, tokenize
 from tokengate.ranking.semantic_scorer import cosine_scores
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
+# Line-aware split: newlines, runs of 2+ spaces (PDF table columns), or sentence ends — so
+# table/bill rows become their own units where sentence-splitting can't break them apart.
+_LINE_SPLIT_RE = re.compile(r"\n+|\s{2,}|(?<=[.!?])\s+")
+# A "data" unit carries a number, currency, percent, date-ish, or email — the literal facts
+# (amounts, dates) that relevance scoring tends to drop because they don't resemble the query.
+_DATA_RE = re.compile(r"\d|[$£€%@]")
 _DEFAULT_SEMANTIC_WEIGHT = 0.6
 _DEFAULT_KEYWORD_WEIGHT = 0.4
 _ENTITY_BONUS = 0.1
@@ -40,6 +46,12 @@ _DEFAULT_SENTENCE_DEDUP_THRESHOLD = 0.95
 def split_sentences(text: str) -> list[str]:
     """Split text into trimmed, non-empty sentences."""
     return [s.strip() for s in _SENTENCE_RE.split(text.strip()) if s.strip()]
+
+
+def split_units(text: str, *, line_aware: bool = False) -> list[str]:
+    """Split into scoring units — sentences, or (line_aware) lines/rows + sentences."""
+    rx = _LINE_SPLIT_RE if line_aware else _SENTENCE_RE
+    return [s.strip() for s in rx.split(text.strip()) if s.strip()]
 
 
 def _query_entity_terms(query: str) -> set[str]:
@@ -112,33 +124,41 @@ def compress_text(
     *,
     keep_ratio: float = _DEFAULT_KEEP_RATIO,
     sentence_dedup_threshold: float = _DEFAULT_SENTENCE_DEDUP_THRESHOLD,
+    line_aware: bool = False,
+    keep_data_lines: bool = False,
 ) -> str:
-    """Return ``content`` with low-relevance and duplicate sentences dropped.
+    """Return ``content`` with low-relevance and duplicate units dropped.
 
-    Keeps every sentence whose score is ≥ ``keep_ratio × best_sentence_score``, then
-    collapses near-identical kept sentences (cosine ≥ ``sentence_dedup_threshold``) to a
-    single copy — preserving original order. **No token target** (ADR-019). Returns the
-    input unchanged when it has ≤ 1 sentence or when nothing would be dropped.
+    Keeps every unit whose score is ≥ ``keep_ratio × best_unit_score``, then collapses
+    near-identical kept units (cosine ≥ ``sentence_dedup_threshold``) to a single copy —
+    preserving original order. **No token target** (ADR-019). Returns the input unchanged
+    when it has ≤ 1 unit or when nothing would be dropped.
+
+    ``line_aware`` splits on lines/table-rows (not just sentences) so structured content
+    (bills, tables) is divisible. ``keep_data_lines`` force-keeps units carrying a number,
+    currency, or date — the literal facts relevance scoring otherwise drops.
     """
-    sentences = split_sentences(content)
-    if len(sentences) <= 1:
+    units = split_units(content, line_aware=line_aware)
+    if len(units) <= 1:
         return content
 
-    scores, vecs = score_sentences(query, sentences, model)
+    scores, vecs = score_sentences(query, units, model)
     best = max(scores)
     if best <= 0:  # no relevance signal — keep all by relevance, but still dedup repeats
-        kept = list(range(len(sentences)))
+        kept = list(range(len(units)))
     else:
         threshold = keep_ratio * best
         kept = [i for i, s in enumerate(scores) if s >= threshold]
-        if not kept:  # safety: keep the single best sentence
-            kept = [max(range(len(sentences)), key=lambda i: scores[i])]
+        if keep_data_lines:  # never drop a unit that holds an amount / date / figure
+            kept = sorted(set(kept) | {i for i, u in enumerate(units) if _DATA_RE.search(u)})
+        if not kept:  # safety: keep the single best unit
+            kept = [max(range(len(units)), key=lambda i: scores[i])]
 
     kept = _dedup_sentences(kept, vecs, sentence_dedup_threshold)
-    if len(kept) == len(sentences):  # nothing to drop
+    if len(kept) == len(units):  # nothing to drop
         return content
 
-    return " ".join(sentences[i] for i in kept)  # kept is already in order
+    return " ".join(units[i] for i in kept)  # kept is already in order
 
 
 def compress_block(
@@ -149,10 +169,12 @@ def compress_block(
     counter: TokenCounter | None = None,
     keep_ratio: float = _DEFAULT_KEEP_RATIO,
     sentence_dedup_threshold: float = _DEFAULT_SENTENCE_DEDUP_THRESHOLD,
+    line_aware: bool = False,
+    keep_data_lines: bool = False,
 ) -> TokenBlock:
     """Return a relevance-compressed copy of ``block`` (or the block unchanged).
 
-    Non-compressible blocks are returned as-is. When boilerplate or duplicate sentences
+    Non-compressible blocks are returned as-is. When boilerplate or duplicate units
     are dropped, a copy is returned with a recomputed ``token_count`` and audit
     breadcrumbs in ``metadata``. Size is content-determined — there is no token target.
     """
@@ -164,6 +186,7 @@ def compress_block(
     new_content = compress_text(
         block.content, query, model,
         keep_ratio=keep_ratio, sentence_dedup_threshold=sentence_dedup_threshold,
+        line_aware=line_aware, keep_data_lines=keep_data_lines,
     )
     if new_content == block.content:
         return block
@@ -171,7 +194,9 @@ def compress_block(
     metadata = dict(block.metadata)
     metadata["compressed"] = True
     metadata["original_token_count"] = original_tokens
-    metadata["compression_method"] = "embedding_extractive"
+    metadata["compression_method"] = (
+        "embedding_extractive_line" if line_aware else "embedding_extractive"
+    )
     return block.copy(
         content=new_content,
         token_count=counter.count(new_content),
@@ -179,4 +204,42 @@ def compress_block(
     )
 
 
-__all__ = ["split_sentences", "score_sentences", "compress_text", "compress_block"]
+class ExtractiveCompressor:
+    """:class:`~tokengate.compression.base.Compressor` over embedding sentence-selection.
+
+    Wraps :func:`compress_block` so the budgeter can treat compression as a pluggable
+    backend. Holds the embedding model + counter so the budgeter only passes ``keep_ratio``.
+    """
+
+    def __init__(
+        self,
+        embedding_model: EmbeddingModel,
+        *,
+        counter: TokenCounter | None = None,
+        sentence_dedup_threshold: float = _DEFAULT_SENTENCE_DEDUP_THRESHOLD,
+        line_aware: bool = False,
+        keep_data_lines: bool = False,
+    ) -> None:
+        self._model = embedding_model
+        self._counter = counter
+        self._sentence_dedup_threshold = sentence_dedup_threshold
+        self._line_aware = line_aware
+        self._keep_data_lines = keep_data_lines
+
+    def compress_block(
+        self, block: TokenBlock, query: str, *, keep_ratio: float
+    ) -> TokenBlock:
+        return compress_block(
+            block, query, self._model,
+            counter=self._counter,
+            keep_ratio=keep_ratio,
+            sentence_dedup_threshold=self._sentence_dedup_threshold,
+            line_aware=self._line_aware,
+            keep_data_lines=self._keep_data_lines,
+        )
+
+
+__all__ = [
+    "split_sentences", "score_sentences", "compress_text", "compress_block",
+    "ExtractiveCompressor",
+]

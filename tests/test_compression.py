@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tokengate import TokenBlock, HeuristicTokenCounter
+from tokengate import HeuristicTokenCounter, TokenBlock
 from tokengate.compression.extractive import (
     compress_block,
     compress_text,
