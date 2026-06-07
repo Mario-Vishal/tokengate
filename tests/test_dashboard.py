@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -82,6 +81,27 @@ def test_session_queries(store: AuditStore, pilot: TokenGate) -> None:
     assert [r["query_text"] for r in qs] == ["q1", "q2", "q3"]
 
 
+def test_session_label_and_preview(store: AuditStore, pilot: TokenGate) -> None:
+    """A supplied label titles the session; without one, the first query is the preview."""
+    r1 = pilot.optimize("what is python?", [_block("Python is a language", "b1")])
+    store.record("sess-labelled", "what is python?", r1, label="my-app")
+    r2 = pilot.optimize("first question", [_block("some content", "b2")])
+    store.record("sess-plain", "first question", r2)
+
+    by_id = {s["session_id"]: s for s in store.sessions()}
+    assert by_id["sess-labelled"]["label"] == "my-app"
+    assert by_id["sess-plain"]["label"] is None
+    # preview is the session's first query, used as a fallback title in the UI
+    assert by_id["sess-plain"]["preview"] == "first question"
+
+
+def test_session_label_latest_wins(store: AuditStore, pilot: TokenGate) -> None:
+    result = pilot.optimize("q", [_block("x", "b")])
+    store.record("s", "q", result)                       # no label
+    store.record("s", "q", result, label="run-2")        # label set later
+    assert {s["session_id"]: s for s in store.sessions()}["s"]["label"] == "run-2"
+
+
 def test_query_detail_not_found(store: AuditStore) -> None:
     assert store.query_detail("nonexistent") is None
 
@@ -112,12 +132,14 @@ def test_audit_has_stages(store: AuditStore, pilot: TokenGate) -> None:
 def test_api_endpoints(store: AuditStore, pilot: TokenGate) -> None:
     try:
         from fastapi.testclient import TestClient
+
         from tokengate.dashboard.server import create_app
     except ImportError:
         pytest.skip("fastapi not installed (dashboard extra not present)")
 
     result = pilot.optimize("test q", [_block("test content", "b1")])
-    qid = store.record("api-sess", "test q", result, config={"strategy": "balanced", "max_prompt_tokens": 512})
+    qid = store.record("api-sess", "test q", result,
+                       config={"strategy": "balanced", "max_prompt_tokens": 512})
 
     client = TestClient(create_app(store))
 

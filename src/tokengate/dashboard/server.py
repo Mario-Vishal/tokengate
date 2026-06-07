@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from tokengate.dashboard.audit_store import AuditStore
 
 _STATIC = Path(__file__).parent / "static"
 
 
-def create_app(store: Any) -> Any:
+def create_app(store: AuditStore) -> Any:
     """Build the FastAPI app wired to *store*. Separated for testing."""
-    from fastapi import FastAPI, HTTPException  # type: ignore[import]
-    from fastapi.responses import HTMLResponse  # type: ignore[import]
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import HTMLResponse
 
     app = FastAPI(title="TokenGate Dashboard", docs_url=None, redoc_url=None)
 
@@ -42,14 +45,14 @@ def create_app(store: Any) -> Any:
 
 
 def serve(
-    store: Any,
+    store: AuditStore,
     *,
     port: int = 8080,
     host: str = "127.0.0.1",
     open_browser: bool = True,
 ) -> None:
     """Run the dashboard server (blocking)."""
-    import uvicorn  # type: ignore[import]
+    import uvicorn
 
     app = create_app(store)
     if open_browser:

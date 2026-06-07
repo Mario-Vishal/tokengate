@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import contextmanager
 from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from time import time
 from typing import Any
@@ -29,7 +29,7 @@ class AuditStore:
 
         store = AuditStore("audits.db")
         result = pilot.optimize(query, blocks)
-        store.record("session-1", query, result,
+        store.record("session-1", query, result, label="my-app",
                      config={"strategy": "balanced", "max_prompt_tokens": 4096})
         store.serve_dashboard()   # opens http://127.0.0.1:8080 in the browser
     """
@@ -77,21 +77,33 @@ class AuditStore:
         result: OptimizationResult,
         *,
         config: dict[str, Any] | None = None,
+        label: str | None = None,
     ) -> str:
-        """Persist one ``optimize()`` call. Returns the generated ``query_id``."""
+        """Persist one ``optimize()`` call. Returns the generated ``query_id``.
+
+        ``label`` is an optional human-readable identifier for the session (e.g. the app
+        name, a run id, or a user). It's stored on the session and shown as its title in
+        the dashboard so sessions are easy to tell apart. The latest non-empty label wins.
+        """
         now = time()
         query_id = uuid4().hex[:16]
         audit_dict = result.audit.to_dict() if result.audit else {}
         audit_dict["final_prompt"] = result.final_prompt
+        meta = json.dumps({"label": label}) if label else None
         with self._conn() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO sessions VALUES (?, ?, ?, ?)",
-                (session_id, now, now, None),
+                (session_id, now, now, meta),
             )
             conn.execute(
                 "UPDATE sessions SET last_seen=? WHERE session_id=?",
                 (now, session_id),
             )
+            if label:
+                conn.execute(
+                    "UPDATE sessions SET meta=? WHERE session_id=?",
+                    (json.dumps({"label": label}), session_id),
+                )
             conn.execute(
                 "INSERT INTO queries VALUES (?, ?, ?, ?, ?, ?)",
                 (query_id, session_id, now, query,
@@ -106,6 +118,10 @@ class AuditStore:
             rows = conn.execute("""
                 SELECT
                     s.session_id, s.first_seen, s.last_seen,
+                    json_extract(s.meta, '$.label') AS label,
+                    (SELECT q2.query_text FROM queries q2
+                        WHERE q2.session_id = s.session_id
+                        ORDER BY q2.created_at LIMIT 1) AS preview,
                     COUNT(q.query_id) AS query_count,
                     COALESCE(SUM(json_extract(q.audit_json, '$.tokens_saved')), 0)
                         AS total_saved,
@@ -239,7 +255,7 @@ class AuditStore:
         open_browser: bool = True,
     ) -> None:
         """Launch the dashboard HTTP server (blocking). Requires ``tokengate[dashboard]``."""
-        from tokengate.dashboard.server import serve  # type: ignore[import]
+        from tokengate.dashboard.server import serve
 
         serve(self, port=port, host=host, open_browser=open_browser)
 

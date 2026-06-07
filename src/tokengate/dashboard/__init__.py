@@ -12,7 +12,8 @@ Quickstart::
     pilot = TokenGate(max_prompt_tokens=4096, strategy="balanced")
 
     result = pilot.optimize(query, blocks)
-    store.record("my-session", query, result, config={"strategy": "balanced", "max_prompt_tokens": 4096})
+    store.record("my-session", query, result, label="my-app",
+                 config={"strategy": "balanced", "max_prompt_tokens": 4096})
 
     store.serve_dashboard(port=8080)   # blocks; opens browser automatically
     # or: python -m tokengate.dashboard --store audits.db --port 8080
