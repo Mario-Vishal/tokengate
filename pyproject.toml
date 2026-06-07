@@ -1,6 +1,6 @@
 [project]
 name = "tokengate"
-version = "0.1.0"
+version = "1.0.0"
 description = "Reusable, app-agnostic context optimization for LLM applications: include, drop, compress, rank, and budget context with a full audit trail."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -9,7 +9,7 @@ requires-python = ">=3.12,<3.13"
 authors = [{ name = "TokenGate Authors" }]
 keywords = ["llm", "context", "optimization", "rag", "prompt", "tokens", "embeddings", "reranker"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",

@@ -11,7 +11,7 @@ compress, and drop before the prompt reaches the LLM — and records every
 decision in a full audit report.
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab?logo=python&logoColor=white)](https://python.org)
-[![Version](https://img.shields.io/badge/version-v0.2.0-22c55e)](https://github.com/Mario-Vishal/tokengate)
+[![Version](https://img.shields.io/badge/version-v1.0.0-22c55e)](https://github.com/Mario-Vishal/tokengate)
 [![Tests](https://img.shields.io/badge/tests-236%20passing-22c55e)](https://github.com/Mario-Vishal/tokengate)
 [![Typed](https://img.shields.io/badge/mypy-strict-3b82f6)](https://mypy.readthedocs.io)
 [![License](https://img.shields.io/badge/license-MIT-94a3b8)](LICENSE)
