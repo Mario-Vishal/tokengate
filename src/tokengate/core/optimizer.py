@@ -3,8 +3,8 @@
 Runs the full neural pipeline and returns an :class:`OptimizationResult`::
 
     exact dedup -> embed (reuse vectors) -> semantic + hybrid scoring -> neural rerank
-    -> semantic dedup -> MMR diversity -> value-per-token budget (compress-to-fit)
-    -> prompt assembly -> audit
+    -> adaptive relevance cutoff -> semantic dedup -> MMR diversity
+    -> value-per-token budget (compress-always) -> prompt assembly -> audit
 
 Embeddings and the reranker are required, first-class models (ADR-010). They default to
 the BGE implementations (loaded lazily on first ``optimize``) and can be injected — e.g.
@@ -13,10 +13,13 @@ fakes in tests, or the app's own models. No generative LLM runs here (ADR-014).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from tokengate.audit.audit_report import build_audit_report
 from tokengate.audit.stage_trace import StageTracer
 from tokengate.budgeting.budgeter import budget_blocks
 from tokengate.budgeting.token_counter import TokenCounter, resolve_counter
+from tokengate.compression.base import Compressor
 from tokengate.core.block import TokenBlock
 from tokengate.core.config import OptimizerConfig
 from tokengate.core.result import (
@@ -32,9 +35,18 @@ from tokengate.prompts.prompt_builder import build_prompt
 from tokengate.ranking.hybrid_ranker import rank_blocks
 from tokengate.ranking.reranker_stage import apply_rerank_relevance, rerank_blocks
 from tokengate.ranking.semantic_scorer import apply_semantic_scores
+from tokengate.selection.adaptive_cutoff import select_by_adaptive_cutoff
 from tokengate.selection.mmr import mmr_select
-from tokengate.utils.errors import TokenGateError, InvalidBlockError, OptimizationError
+from tokengate.utils.errors import InvalidBlockError, OptimizationError, TokenGateError
 from tokengate.utils.logging import get_logger, log_event
+
+if TYPE_CHECKING:
+    from tokengate.eval.compare import (
+        AblationResult,
+        RecipeComparisonResult,
+        RecipeRunResult,
+    )
+    from tokengate.eval.recipe import RecipeConfig
 
 _logger = get_logger("optimizer")
 
@@ -60,17 +72,23 @@ class TokenGate:
         strategy: str = "balanced",
         *,
         config: OptimizerConfig | None = None,
+        recipe: str | RecipeConfig | None = None,
         embedding_model: EmbeddingModel | None = None,
         reranker: Reranker | None = None,
         token_counter: TokenCounter | None = None,
         trace: bool = True,
     ) -> None:
+        if config is None and recipe is not None:
+            from tokengate.eval.recipe import get_recipe
+
+            config = get_recipe(recipe).to_optimizer_config(max_prompt_tokens=max_prompt_tokens)
         self.config = config or OptimizerConfig.for_strategy(
             strategy, max_prompt_tokens=max_prompt_tokens
         )
         self._counter = resolve_counter(self.config.token_counter or token_counter)
         self._embedding_model = embedding_model
         self._reranker = reranker
+        self._compressor: Compressor | None = None
         # Per-stage tracing (CP-028); cheap, on by default. Set trace=False to skip.
         self._trace = trace
 
@@ -92,6 +110,25 @@ class TokenGate:
             self._reranker = BGEReranker()
         return self._reranker
 
+    @property
+    def compressor(self) -> Compressor:
+        """The configured compression backend, built lazily (CP-031)."""
+        if self._compressor is None:
+            if self.config.compression_backend == "llmlingua2":
+                from tokengate.compression.llmlingua_compressor import LLMLinguaCompressor
+
+                self._compressor = LLMLinguaCompressor(
+                    self.config.llmlingua_model, counter=self._counter
+                )
+            else:
+                from tokengate.compression.extractive import ExtractiveCompressor
+
+                self._compressor = ExtractiveCompressor(
+                    self.embedding_model, counter=self._counter,
+                    sentence_dedup_threshold=self.config.compression_sentence_dedup_threshold,
+                )
+        return self._compressor
+
     def optimize(self, query: str, blocks: list[TokenBlock]) -> OptimizationResult:
         """Run the full neural pipeline and return the result + audit."""
         if not isinstance(query, str):
@@ -106,6 +143,52 @@ class TokenGate:
             raise
         except Exception as exc:  # unexpected -> wrap, never leak raw internals
             raise OptimizationError(f"optimization failed: {exc}") from exc
+
+    # --- recipe lab (CP-040/041) ------------------------------------------
+    # Run/compare/ablate recipes on the *same* candidate blocks, reusing this instance's
+    # models (loaded once). Retrieval is the caller's job — these never re-retrieve.
+
+    def run_recipe(
+        self, query: str, blocks: list[TokenBlock], recipe: str | RecipeConfig
+    ) -> RecipeRunResult:
+        """Run a single named/custom recipe and return its token economics + stage trace."""
+        from tokengate.eval.compare import run_recipe as _run_recipe
+
+        return _run_recipe(
+            query, blocks, recipe,
+            embedding_model=self.embedding_model, reranker=self.reranker,
+            counter=self._counter, max_prompt_tokens=self.config.max_prompt_tokens,
+        )
+
+    def compare_recipes(
+        self,
+        query: str,
+        blocks: list[TokenBlock],
+        recipes: list[str | RecipeConfig],
+        *,
+        objective: str = "balanced",
+    ) -> RecipeComparisonResult:
+        """Run several recipes on the same candidates and rank them by ``objective``."""
+        from tokengate.eval.compare import compare_recipes as _compare
+
+        return _compare(
+            query, blocks, recipes,
+            embedding_model=self.embedding_model, reranker=self.reranker,
+            counter=self._counter, max_prompt_tokens=self.config.max_prompt_tokens,
+            objective=objective,
+        )
+
+    def ablation(
+        self, query: str, blocks: list[TokenBlock], *, base: str | RecipeConfig = "full_tg"
+    ) -> AblationResult:
+        """Disable each stage in turn and measure the token delta (where savings come from)."""
+        from tokengate.eval.compare import ablation as _ablation
+
+        return _ablation(
+            query, blocks, base=base,
+            embedding_model=self.embedding_model, reranker=self.reranker,
+            counter=self._counter, max_prompt_tokens=self.config.max_prompt_tokens,
+        )
 
     # --- internal pipeline ------------------------------------------------
 
@@ -160,15 +243,35 @@ class TokenGate:
             )
             tracer.add("embed_rank", before=kept, after=ranked, t0=t)
 
-            # (5) neural reranking + top-N cutoff; then let the reranker drive final_score
-            t = tracer.start()
-            reranked = rerank_blocks(query, ranked, self.reranker, top_n=cfg.rerank_top_n)
-            kept_ids = {id(b) for b in reranked}
-            for b in ranked:
-                if id(b) not in kept_ids:
-                    drop(b, "below rerank cutoff")
-            apply_rerank_relevance(reranked, rerank_weight=cfg.rerank_weight)
-            tracer.add("rerank", before=ranked, after=reranked, t0=t)
+            # (5) neural reranking + top-N cutoff; then let the reranker drive final_score.
+            # When disabled (e.g. speed / top_k_only recipes) the hybrid-rank final_score
+            # stands and no cross-encoder runs.
+            if cfg.enable_reranker:
+                t = tracer.start()
+                reranked = rerank_blocks(query, ranked, self.reranker, top_n=cfg.rerank_top_n)
+                kept_ids = {id(b) for b in reranked}
+                for b in ranked:
+                    if id(b) not in kept_ids:
+                        drop(b, "below rerank cutoff")
+                apply_rerank_relevance(reranked, rerank_weight=cfg.rerank_weight,
+                                       normalization_ceiling=cfg.rerank_normalization_ceiling)
+                tracer.add("rerank", before=ranked, after=reranked, t0=t)
+            else:
+                reranked = ranked
+
+            # (5b) per-query adaptive relevance cutoff (CP-030): keep blocks above this
+            # query's relevance cliff instead of a fixed floor — few for focused queries,
+            # many for broad/synthesis ones. Replaces relevance_floor + min_rerank_score.
+            if cfg.adaptive_cutoff:
+                t = tracer.start()
+                before_ac = reranked
+                kept_ac, dropped_ac = select_by_adaptive_cutoff(
+                    reranked, min_keep=cfg.adaptive_cutoff_min_keep
+                )
+                for b in dropped_ac:
+                    drop(b, "below adaptive relevance cutoff")
+                reranked = kept_ac
+                tracer.add("adaptive_cutoff", before=before_ac, after=reranked, t0=t)
 
             # (6) semantic deduplication
             t = tracer.start()
@@ -190,7 +293,8 @@ class TokenGate:
             selected = mmr_select(deduped, lambda_=cfg.mmr_lambda) if cfg.enable_mmr else deduped
             tracer.add("mmr", before=deduped, after=selected, t0=t)
 
-            # (8) value-per-token budgeting (compress-to-fit)
+            # (8) value-per-token budgeting (compress-to-fit). When the adaptive cutoff
+            # already pruned by relevance, bypass the fixed floors so we don't double-cut.
             t = tracer.start()
             outcome = budget_blocks(
                 selected,
@@ -199,7 +303,15 @@ class TokenGate:
                 counter=counter,
                 enable_compression=cfg.enable_compression,
                 embedding_model=embedder,
-                relevance_floor=cfg.relevance_floor,
+                relevance_floor=0.0 if cfg.adaptive_cutoff else cfg.relevance_floor,
+                # Keep the absolute rerank floor even with the adaptive cutoff: the cutoff
+                # runs on final_score (rerank blended with semantic), so a block the
+                # cross-encoder scored ~0 gets inflated by semantic similarity and survives
+                # as noise. The floor drops "reranker says irrelevant" blocks regardless;
+                # the budgeter's fallback-top-1 still guarantees at least one block.
+                min_rerank_score=cfg.min_rerank_score,
+                compress_always=cfg.compress_always,
+                compressor=self.compressor if cfg.enable_compression else None,
                 compression_keep_ratio=cfg.compression_keep_ratio,
                 compression_sentence_dedup_threshold=cfg.compression_sentence_dedup_threshold,
             )

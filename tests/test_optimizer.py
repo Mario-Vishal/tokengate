@@ -5,11 +5,12 @@ from __future__ import annotations
 import pytest
 
 from tokengate import (
-    TokenBlock,
-    TokenGate,
     InvalidBlockError,
     OptimizationResult,
+    TokenBlock,
+    TokenGate,
 )
+from tokengate.core.config import OptimizerConfig
 from tokengate.models import FakeEmbeddingModel, FakeReranker
 
 
@@ -104,8 +105,9 @@ def test_decisions_carry_rerank_score() -> None:
 
 def test_rerank_cutoff_drops_recorded() -> None:
     blocks = [TokenBlock(content=f"doc {i} job search", token_count=10) for i in range(8)]
-    result = _pilot(max_prompt_tokens=1000, strategy="speed").optimize("job search", blocks)
-    # speed preset rerank_top_n=5 -> at least 3 dropped below cutoff
+    # rerank_top_n=5 with reranking on -> at least 3 dropped below cutoff
+    config = OptimizerConfig.for_strategy("balanced", max_prompt_tokens=1000, rerank_top_n=5)
+    result = _pilot(config=config).optimize("job search", blocks)
     cutoff = [d for d in result.audit.decisions if d.reason == "below rerank cutoff"]
     assert len(cutoff) >= 3
 
@@ -134,12 +136,15 @@ def test_result_is_serializable() -> None:
 def test_stage_trace_records_the_funnel() -> None:
     blocks = [TokenBlock(content=f"doc {i} job search resume", token_count=10)
               for i in range(8)]
-    result = _pilot(max_prompt_tokens=1000, strategy="speed").optimize("job search", blocks)
+    # Full balanced pipeline (all stages on) with a tight rerank cutoff.
+    config = OptimizerConfig.for_strategy("balanced", max_prompt_tokens=1000, rerank_top_n=5)
+    result = _pilot(config=config).optimize("job search", blocks)
     stages = result.audit.stages
     names = [s.stage for s in stages]
     # full funnel present, in order
-    assert names == ["exact_dedup", "embed_rank", "rerank", "semantic_dedup", "mmr", "budget"]
-    # the rerank stage thins the candidate set (speed preset rerank_top_n=5)
+    assert names == ["exact_dedup", "embed_rank", "rerank", "adaptive_cutoff",
+                     "semantic_dedup", "mmr", "budget"]
+    # the rerank stage thins the candidate set (rerank_top_n=5)
     rerank = next(s for s in stages if s.stage == "rerank")
     assert rerank.blocks_in == 8 and rerank.blocks_out <= 5
     assert rerank.dropped == rerank.blocks_in - rerank.blocks_out

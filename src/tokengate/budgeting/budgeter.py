@@ -23,13 +23,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from tokengate.budgeting.token_counter import TokenCounter, resolve_counter
-from tokengate.compression.extractive import compress_block
+from tokengate.compression.base import Compressor
+from tokengate.compression.extractive import ExtractiveCompressor
 from tokengate.core.block import TokenBlock
 from tokengate.core.result import (
     DECISION_COMPRESSED,
     DECISION_DROPPED,
     DECISION_INCLUDED,
     BlockDecision,
+    Decision,
 )
 from tokengate.models.base import EmbeddingModel
 from tokengate.utils.errors import BudgetError
@@ -68,6 +70,9 @@ def budget_blocks(
     enable_compression: bool = True,
     embedding_model: EmbeddingModel | None = None,
     relevance_floor: float = 0.0,
+    min_rerank_score: float = 0.0,
+    compress_always: bool = False,
+    compressor: Compressor | None = None,
     compression_keep_ratio: float = 0.5,
     compression_sentence_dedup_threshold: float = 0.95,
 ) -> BudgetOutcome:
@@ -77,9 +82,17 @@ def budget_blocks(
     budgeting (ADR-018), so cheap low-relevance noise can't crowd out relevant content
     and leave no room to compress high-value large blocks. 0.0 disables it.
 
-    Compress-to-fit needs ``embedding_model`` (extractive compression scores sentences
-    with embeddings). Without one, oversized optional blocks are dropped rather than
-    compressed; the engine (optimizer) always supplies a model.
+    Compression needs ``embedding_model`` (extractive compression scores sentences with
+    embeddings). Without one, oversized optional blocks are dropped rather than compressed;
+    the engine (optimizer) always supplies a model.
+
+    ``compress_always`` makes compression the primary token-saving lever (CP-029): every
+    compressible optional block is relevance-compressed up front — boilerplate and
+    off-query sentences dropped — *before* the fit check, so kept relevant content costs
+    minimal tokens. When ``False`` (the legacy default) compression is compress-to-fit: a
+    block is only compressed if it overflows the remaining budget, so blocks that already
+    fit go in verbatim. Either way compression is relevance-driven with no token target
+    (ADR-019); a block that still doesn't fit after compression is dropped, never truncated.
     """
     if budget_tokens <= 0:
         raise BudgetError(f"budget_tokens must be positive, got {budget_tokens}")
@@ -87,10 +100,18 @@ def budget_blocks(
     counter = resolve_counter(counter)
     outcome = BudgetOutcome()
 
+    # Default to the embedding extractive compressor when the caller didn't inject one
+    # (keeps the legacy signature working; the optimizer injects the configured backend).
+    if compressor is None and enable_compression and embedding_model is not None:
+        compressor = ExtractiveCompressor(
+            embedding_model, counter=counter,
+            sentence_dedup_threshold=compression_sentence_dedup_threshold,
+        )
+
     # Per-block result, keyed by object identity (robust to duplicate block_ids), so we
     # can emit prompt_blocks / decisions in ranked order after fitting.
     # Maps id(block) -> (fate, block_to_place_or_None, decision).
-    result: dict[int, tuple[str, TokenBlock | None, BlockDecision]] = {}
+    result: dict[int, tuple[Decision, TokenBlock | None, BlockDecision]] = {}
 
     # (1) Reserve all required blocks first.
     for block in ranked_blocks:
@@ -121,6 +142,20 @@ def budget_blocks(
         tokens = block.ensure_token_count(counter)
         score = block.final_score
 
+        # Hard rerank floor: cross-encoder says this block is not relevant — drop unconditionally.
+        raw_rerank = block.rerank_score if block.rerank_score is not None else 0.0
+        if min_rerank_score > 0.0 and raw_rerank < min_rerank_score:
+            result[id(block)] = (
+                DECISION_DROPPED,
+                None,
+                BlockDecision(block.block_id, DECISION_DROPPED,
+                              f"below min rerank score ({min_rerank_score:.3f})",
+                              tokens, 0, score, rerank_score=block.rerank_score,
+                              source_id=block.source_id,
+                              content_preview=block.content[:300]),
+            )
+            continue
+
         # Relevance floor: prune low-relevance blocks before they consume budget.
         if relevance_floor > 0.0 and (score if score is not None else 0.0) < relevance_floor:
             result[id(block)] = (
@@ -136,46 +171,42 @@ def budget_blocks(
 
         remaining = budget_tokens - outcome.used_tokens
 
-        if tokens <= remaining:
-            outcome.used_tokens += tokens
-            result[id(block)] = (
-                DECISION_INCLUDED,
-                block,
-                BlockDecision(block.block_id, DECISION_INCLUDED, "fits within budget",
-                              tokens, tokens, score, rerank_score=block.rerank_score,
-                              source_id=block.source_id,
-                              content_preview=block.content[:300]),
-            )
-            continue
-
-        # Relevance-driven compression (ADR-019): drop boilerplate; size is
-        # content-determined (no token target). Keep only if the pruned block fits;
-        # otherwise drop the whole block — never truncate relevant content to a number.
+        # Relevance-driven compression (ADR-019): drop boilerplate / off-query sentences;
+        # size is content-determined (no token target). With ``compress_always`` every
+        # compressible block is squeezed up front (compression is the main token lever);
+        # otherwise only an oversized block is compressed (compress-to-fit). A block that
+        # still doesn't fit is dropped — relevant content is never truncated to a number.
+        place = block
+        fate = DECISION_INCLUDED
+        reason = "fits within budget"
         if (
             enable_compression
-            and embedding_model is not None
+            and compressor is not None
             and block.compressible
             and remaining > 0
+            and (compress_always or tokens > remaining)
         ):
-            compressed = compress_block(
-                block, query, embedding_model, counter=counter,
-                keep_ratio=compression_keep_ratio,
-                sentence_dedup_threshold=compression_sentence_dedup_threshold,
+            compressed = compressor.compress_block(
+                block, query, keep_ratio=compression_keep_ratio,
             )
-            new_tokens = compressed.ensure_token_count(counter)
-            if compressed is not block and new_tokens <= remaining:
-                outcome.used_tokens += new_tokens
-                result[id(block)] = (
-                    DECISION_COMPRESSED,
-                    compressed,
-                    BlockDecision(block.block_id, DECISION_COMPRESSED,
-                                  "compressed (boilerplate dropped) to fit budget",
-                                  tokens, new_tokens, score,
-                                  rerank_score=block.rerank_score,
-                                  source_id=block.source_id,
-                                  content_preview=compressed.content[:300]),
-                )
-                continue
+            if compressed is not block:
+                place = compressed
+                fate = DECISION_COMPRESSED
+                reason = "compressed (low-value text dropped)"
+
+        place_tokens = place.ensure_token_count(counter)
+        if place_tokens <= remaining:
+            outcome.used_tokens += place_tokens
+            result[id(block)] = (
+                fate,
+                place,
+                BlockDecision(block.block_id, fate, reason,
+                              tokens, place_tokens, score,
+                              rerank_score=block.rerank_score,
+                              source_id=block.source_id,
+                              content_preview=place.content[:300]),
+            )
+            continue
 
         result[id(block)] = (
             DECISION_DROPPED,
@@ -185,6 +216,28 @@ def budget_blocks(
                           rerank_score=block.rerank_score,
                           source_id=block.source_id,
                           content_preview=block.content[:300]),
+        )
+
+    # (2b) Fallback: if every optional block was filtered out, force-include the top-1
+    # by raw rerank score so the LLM always has at least some grounding and can't
+    # hallucinate from training data on an empty context.
+    nothing_included = not any(
+        fate == DECISION_INCLUDED or fate == DECISION_COMPRESSED
+        for fate, _, _ in result.values()
+    )
+    if nothing_included and optional:
+        best = max(optional, key=lambda b: b.rerank_score if b.rerank_score is not None else 0.0)
+        tokens = best.ensure_token_count(counter)
+        outcome.used_tokens += tokens
+        result[id(best)] = (
+            DECISION_INCLUDED,
+            best,
+            BlockDecision(best.block_id, DECISION_INCLUDED,
+                          "fallback: top-1 by rerank score (all others filtered)",
+                          tokens, tokens, best.final_score,
+                          rerank_score=best.rerank_score,
+                          source_id=best.source_id,
+                          content_preview=best.content[:300]),
         )
 
     # (3) Emit in ranked order so prompt_blocks/decisions are deterministic.

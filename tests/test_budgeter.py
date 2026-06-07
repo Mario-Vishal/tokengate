@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tokengate import TokenBlock, HeuristicTokenCounter
+from tokengate import HeuristicTokenCounter, TokenBlock
 from tokengate.budgeting.budgeter import budget_blocks
 from tokengate.core.result import (
     DECISION_COMPRESSED,
@@ -104,6 +104,74 @@ def test_compression_to_fit_included_as_compressed() -> None:
     assert "job search" in out.compressed[0].content
 
 
+def test_line_aware_split_breaks_table_rows() -> None:
+    from tokengate.compression.extractive import split_units
+    blob = "Amount Due $154.61\nDue by 06/27/2026\nProvider   Pine River Electric"
+    # sentence split keeps it as ~1 unit (no periods); line-aware splits rows + columns.
+    assert len(split_units(blob, line_aware=False)) == 1
+    assert len(split_units(blob, line_aware=True)) >= 3
+
+
+def test_keep_data_lines_preserves_amounts_and_dates() -> None:
+    from tokengate.compression.extractive import compress_text
+    from tokengate.models import FakeEmbeddingModel
+    doc = ("Customer service address and mailing preferences.\n"
+           "Amount Due $154.61\nDue by 06/27/2026\n"
+           "Please retain this notice for your records.")
+    # query is about the irrelevant boilerplate, so relevance alone would drop the data lines.
+    out = compress_text(doc, "mailing preferences address", FakeEmbeddingModel(dim=128),
+                        keep_ratio=0.9, line_aware=True, keep_data_lines=True)
+    assert "$154.61" in out
+    assert "06/27/2026" in out
+
+
+def test_compress_always_squeezes_blocks_that_already_fit() -> None:
+    # A block that fits the budget as-is: legacy compress-to-fit leaves it verbatim, but
+    # compress_always squeezes out off-query boilerplate up front (the main token lever).
+    doc = (
+        "The budget report covers expenses for the quarter in detail. "
+        "Our job search strategy focuses on resume keywords and networking. "
+        "The cafeteria menu changes every Friday without fail. "
+        "Please water the office plants at least once per week."
+    )
+    full_tokens = _COUNTER.count(doc)
+    budget = full_tokens + 100  # block fits comfortably as-is
+
+    # compress_always=False (legacy): kept verbatim.
+    verbatim = TokenBlock(content=doc, block_id="b", final_score=0.9, compressible=True)
+    out_off = budget_blocks([verbatim], query="job search resume", budget_tokens=budget,
+                            counter=_COUNTER, embedding_model=FakeEmbeddingModel(dim=128),
+                            compress_always=False)
+    assert [b.block_id for b in out_off.included] == ["b"]
+    assert out_off.compressed == []
+
+    # compress_always=True: same fitting block is compressed up front to save tokens.
+    squeezable = TokenBlock(content=doc, block_id="b", final_score=0.9, compressible=True)
+    out_on = budget_blocks([squeezable], query="job search resume", budget_tokens=budget,
+                           counter=_COUNTER, embedding_model=FakeEmbeddingModel(dim=128),
+                           compress_always=True)
+    assert [b.block_id for b in out_on.compressed] == ["b"]
+    assert out_on.included == []
+    assert out_on.used_tokens < full_tokens
+    assert "job search" in out_on.compressed[0].content
+
+
+def test_injected_compressor_is_used() -> None:
+    # The budgeter delegates compression to whatever Compressor is injected (CP-031).
+    class HalvingCompressor:
+        def compress_block(self, block, query, *, keep_ratio):
+            half = block.content[: len(block.content) // 2]
+            return block.copy(content=half, token_count=max(1, block.token_count // 2))
+
+    doc = "alpha beta gamma delta epsilon zeta eta theta iota kappa"
+    big = TokenBlock(content=doc, block_id="b", token_count=40, final_score=0.9, compressible=True)
+    out = budget_blocks([big], query="q", budget_tokens=1000, counter=_COUNTER,
+                        compress_always=True, compressor=HalvingCompressor())
+    assert [b.block_id for b in out.compressed] == ["b"]
+    assert out.decisions[0].decision == DECISION_COMPRESSED
+    assert out.decisions[0].final_tokens < out.decisions[0].original_tokens
+
+
 def test_value_per_token_prefers_dense_blocks() -> None:
     # Budget fits two small high-value blocks OR one large block. Value-per-token should
     # pick the two small ones (total value 1.35 > 0.80), unlike a rank-by-score budgeter
@@ -137,9 +205,12 @@ def test_relevance_floor_zero_disabled() -> None:
 
 
 def test_non_compressible_over_budget_is_dropped_not_compressed() -> None:
+    # A small fitting block keeps *something* included so the fallback-top-1 rule (which
+    # only fires when nothing is included) doesn't mask the drop we're asserting.
     doc = "one. two. three. four. five. six. seven. eight."
-    block = TokenBlock(content=doc, block_id="nc", final_score=0.9, compressible=False)
-    budget = _COUNTER.count(doc) - 2
-    out = budget_blocks([block], query="three", budget_tokens=budget, counter=_COUNTER)
-    assert [b.block_id for b in out.dropped] == ["nc"]
-    assert out.compressed == []
+    keep = _block("keep", 3, score=0.95)
+    nc = TokenBlock(content=doc, block_id="nc", final_score=0.9, compressible=False)
+    budget = _COUNTER.count(doc) - 2  # fits "keep" but not "nc"
+    out = budget_blocks([keep, nc], query="three", budget_tokens=budget, counter=_COUNTER)
+    assert "nc" in [b.block_id for b in out.dropped]
+    assert "nc" not in [b.block_id for b in out.compressed]

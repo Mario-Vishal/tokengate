@@ -48,18 +48,26 @@ def rerank_blocks(
 
 
 def apply_rerank_relevance(
-    blocks: list[TokenBlock], *, rerank_weight: float = 0.7
+    blocks: list[TokenBlock], *, rerank_weight: float = 0.7,
+    normalization_ceiling: float = 0.5,
 ) -> None:
     """Blend the cross-encoder score into ``final_score`` so the reranker drives
     downstream selection (MMR + budgeting), not just the top-N cutoff (ADR-018).
 
-    ``rerank_score`` is min-max normalized across ``blocks`` (raw cross-encoder scores
-    are unbounded), then ``final_score = w·norm_rerank + (1−w)·prior_final_score``.
+    When the best raw rerank score exceeds ``normalization_ceiling``, min-max
+    normalization is used so the full [0, 1] range is exploited. When all scores are
+    below the ceiling (every block is weakly relevant), absolute scaling is used instead
+    — keeping near-zero scores near-zero so the relevance floor can drop them, rather
+    than inflating the "best of the irrelevant" to look relevant.
     """
     if not blocks:
         return
     raw = [b.rerank_score if b.rerank_score is not None else 0.0 for b in blocks]
-    normalized = normalize_min_max(raw)
+    max_raw = max(raw) if raw else 0.0
+    if max_raw >= normalization_ceiling:
+        normalized = normalize_min_max(raw)
+    else:
+        normalized = [r / normalization_ceiling for r in raw]
     for block, norm in zip(blocks, normalized, strict=True):
         prior = block.final_score if block.final_score is not None else 0.0
         block.final_score = rerank_weight * norm + (1.0 - rerank_weight) * prior
