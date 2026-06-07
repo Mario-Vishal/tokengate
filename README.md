@@ -6,8 +6,8 @@
 
 **Neural context optimization for LLM applications.**
 
-Given a query and a pool of retrieved chunks, TokenGate decides what to keep,
-compress, and drop before the prompt reaches the LLM — and records every
+Give it a query and a pile of retrieved chunks. TokenGate decides what to keep,
+compress, and drop before the prompt reaches the LLM, and it records every
 decision in a full audit report.
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -24,37 +24,37 @@ decision in a full audit report.
 
 The default approach in RAG is to retrieve the top-k chunks and stuff them all into the prompt. That works until it doesn't: token limits blow up, irrelevant passages dilute the answer, and you have no idea what the model actually saw.
 
-TokenGate replaces the stuffing step with a neural pipeline: embedding-based hybrid ranking, cross-encoder reranking, a per-query adaptive relevance cutoff, semantic deduplication, MMR diversity, and value-per-token budgeting. The token savings come from **deduplicating and selecting** — not from lossy compression, which ships **off by default** ([here's why](#why-compression-is-off-by-default)). The model gets a tighter, more relevant prompt. You get a full audit of every decision made along the way.
+TokenGate replaces the stuffing step with a neural pipeline: embedding-based hybrid ranking, cross-encoder reranking, a per-query adaptive relevance cutoff, semantic deduplication, MMR diversity, and value-per-token budgeting. The token savings come from **deduplicating and selecting**, not from lossy compression (which ships **off by default**; [here's why](#why-compression-is-off-by-default)). The model gets a tighter, more relevant prompt, and you get a full audit of every decision it made along the way.
 
-No generative LLM runs inside the pipeline. Pure Python. Runs offline.
+No generative LLM runs inside the pipeline. It's pure Python and runs offline.
 
 ---
 
 ## Results
 
-Measured on a 20-query benchmark over a 29-document personal-docs corpus (utility bills, resumes, trip plans, vet records, wedding RSVPs), against a **modern** RAG baseline — retrieve → cross-encoder rerank → top-N stuff — *not* a naive stuff-everything strawman:
+Measured on a 20-query benchmark over a 29-document personal-docs corpus (utility bills, resumes, trip plans, vet records, wedding RSVPs), against a **modern** RAG baseline (retrieve, cross-encoder rerank, then stuff the top N), not a naive stuff-everything strawman:
 
 | Metric | Result |
 |---|---|
-| **Context tokens (aggregate)** | **−71%** (29,397 → 8,466 across all 20 queries) |
-| **Answer regressions** | **0** — every answer the baseline got right, TokenGate got right |
-| Median per-query reduction | **0%** (see below — this is the honest part) |
-| Worst case | **1 / 20** queries slightly worse (+20 tokens) |
+| **Context tokens (aggregate)** | **−71%** (29,397 down to 8,466 across all 20 queries) |
+| **Answer regressions** | **0**. Every answer the baseline got right, TokenGate got right too |
+| Median per-query reduction | **0%** (see below; this is the honest part) |
+| Worst case | **1 of 20** queries came out slightly worse (+20 tokens) |
 
-The savings are **not uniform**, and saying so is the point:
+The savings aren't uniform, and that's worth being upfront about:
 
-- On **focused, single-document lookups**, TokenGate *ties* the baseline (median 0%). The baseline already keeps one chunk; so does TokenGate. No magic, no regression.
-- On **multi-document synthesis** queries — where a naive top-N dumps 9–20 redundant chunks — TokenGate cuts **90%+**. Example: *"compare the monthly charges across my utility bills"* → **7,903 → 279 tokens** (19 blocks collapsed to 1).
+- On **focused, single-document lookups**, TokenGate ties the baseline (median 0%). The baseline already keeps one chunk, and so does TokenGate. Nothing clever happening, and nothing lost either.
+- On **multi-document synthesis** queries, where a naive top-N dumps 9 to 20 redundant chunks, TokenGate cuts **90% or more**. For example, "compare the monthly charges across my utility bills" went from **7,903 tokens to 279** (19 blocks collapsed to 1).
 
-The win comes from **deduplication and selection, not lossy compression.**
+The win comes from deduplication and selection, not from lossy compression.
 
 ### Why compression is off by default
 
-TokenGate ships with an LLMLingua-2 learned-compression backend. In isolation it looks great — **72% token shrink at 100% fact-string retention.** But measured *end-to-end*, aggressive compression **broke answers**: at ~60% shrink it dropped the *linking entity* (a person's name) that tied a question to its document, and the model began answering *"I can't find …"* on questions the full-text baseline answered correctly.
+TokenGate ships with an LLMLingua-2 learned-compression backend. In isolation it looks great: **72% token shrink with 100% of the fact strings retained.** But measured end to end, aggressive compression **broke answers**. At around 60% shrink it dropped the linking entity (a person's name) that tied a question to its document, and the model started replying "I can't find ..." to questions the full-text baseline answered correctly.
 
-The fact strings survived. *Answerability* didn't. So compression is **opt-in and off by default.** Building it, measuring it honestly, catching the failure, and turning it off is the feature — not shipping a number that looks good in a unit test and breaks in production.
+The fact strings survived; the answerability didn't. So compression is opt-in and off by default. Building it, measuring it honestly, catching the failure, and turning it off is the point. The alternative is shipping a number that looks good in a unit test and quietly breaks in production.
 
-> **Benchmark caveat:** this is a single 20-query personal-docs corpus, not a large public eval. It's a representative, reproducible demo with an honest methodology — not a claim of universal SOTA. Reproduce it: see [`beacon/`](https://github.com/Mario-Vishal/tokengate) benchmark harness.
+> **Benchmark caveat:** this is a single 20-query personal-docs corpus, not a large public eval. It's a representative, reproducible demo with an honest methodology, not a claim of universal SOTA. To reproduce it, see the [`beacon/`](https://github.com/Mario-Vishal/tokengate) benchmark harness.
 
 ---
 
@@ -64,7 +64,7 @@ The fact strings survived. *Answerability* didn't. So compression is **opt-in an
 pip install git+https://github.com/Mario-Vishal/tokengate.git
 ```
 
-> **Models are downloaded on first use.** BGE-M3 (embedder) and BGE-Reranker-v2-m3 (cross-encoder) are fetched from Hugging Face automatically and cached locally (~1-2 GB total). Requires Python 3.12 and PyTorch.
+> **Models are downloaded on first use.** BGE-M3 (embedder) and BGE-Reranker-v2-m3 (cross-encoder) are fetched from Hugging Face automatically and cached locally (about 1 to 2 GB total). Requires Python 3.12 and PyTorch.
 
 With the optional audit dashboard:
 
@@ -118,7 +118,7 @@ for d in result.audit.decisions:
    4.  BGE rerank           cross-encoder score per (query, chunk) pair
    5.  adaptive cutoff      keep blocks above THIS query's relevance cliff
    6.  semantic dedup       collapse near-paraphrases by cosine threshold
-   7.  compress (opt-in)    LLMLingua-2 token compression — OFF by default
+   7.  compress (opt-in)    LLMLingua-2 token compression, OFF by default
    8.  MMR selection        diversity-aware greedy final set
    9.  token budget         value-per-token fit within the context window
   10.  prompt build         stable/cacheable sections first, query last
@@ -142,7 +142,7 @@ for d in result.audit.decisions:
 | `speed` | Skips the cross-encoder, loose dedup thresholds. Fastest. |
 | `balanced` | Full pipeline with balanced weights. Default. |
 | `quality` | Aggressive reranking, tight semantic dedup, higher relevance floor. |
-| `max_compression` | The only preset with compression **on** (conservative `extractive` backend). For the aggressive LLMLingua-2 backend, also set `compression_backend="llmlingua2"` and `pip install "tokengate[compression]"` — but read [why compression is off in the default strategies](#why-compression-is-off-by-default) first. |
+| `max_compression` | The only preset with compression **on** (conservative `extractive` backend). For the aggressive LLMLingua-2 backend, also set `compression_backend="llmlingua2"` and `pip install "tokengate[compression]"`, and read [why compression is off in the default strategies](#why-compression-is-off-by-default) first. |
 
 ```python
 gate = TokenGate(strategy="quality")
@@ -169,7 +169,7 @@ gate = TokenGate(
 
 ## Configuration
 
-Every knob lives on `OptimizerConfig`. Set them in code, or keep them in a **`tokengate.toml`** file so thresholds can be tuned (by a teammate, or the dashboard) without touching code. **Only the keys you list are overridden — everything else keeps its default.**
+Every knob lives on `OptimizerConfig`. Set them in code, or keep them in a **`tokengate.toml`** file so thresholds can be tuned (by a teammate, or the dashboard) without touching code. Only the keys you list get overridden; everything else keeps its default.
 
 ```toml
 # tokengate.toml
@@ -178,7 +178,7 @@ strategy = "balanced"           # base preset to layer on top of; omit for the d
 max_prompt_tokens = 8192
 semantic_dedup_threshold = 0.88
 mmr_lambda = 0.6
-enable_compression = false      # off by default — see "Why compression is off" above
+enable_compression = false      # off by default; see "Why compression is off" above
 
 [tokengate.source_priorities]   # optional: weight sources in [0, 1]
 desktop = 0.9
@@ -193,11 +193,11 @@ from tokengate import TokenGate, OptimizerConfig
 # Explicit path:
 gate = TokenGate(config=OptimizerConfig.from_file("tokengate.toml"))
 
-# Or auto-resolve:  explicit arg → $TOKENGATE_CONFIG → ./tokengate.toml → built-in defaults
+# Or auto-resolve. Order: explicit arg, then $TOKENGATE_CONFIG, then ./tokengate.toml, then built-in defaults
 gate = TokenGate(config=OptimizerConfig.load())
 ```
 
-**Where to put the file when you embed TokenGate in your app:** anywhere — pass the path to `from_file()`. Or drop a `tokengate.toml` in your app's working directory (or point `$TOKENGATE_CONFIG` at it) and call `OptimizerConfig.load()`. Unknown keys raise (typos can't silently no-op) and every value is validated on load.
+**Where to put the file when you embed TokenGate in your app:** anywhere you like, then pass the path to `from_file()`. Or drop a `tokengate.toml` in your app's working directory (or point `$TOKENGATE_CONFIG` at it) and call `OptimizerConfig.load()`. Unknown keys raise, so a typo can't silently no-op, and every value is validated on load.
 
 ---
 
@@ -222,7 +222,7 @@ gate = TokenGate(embedding_model=MyEmbedder(), reranker=MyReranker())
 
 ## Audit dashboard
 
-Optimization is only trustworthy if you can see what it did. The `[dashboard]` extra adds a **standalone** local web UI (FastAPI + Chart.js) that turns every `optimize()` call into an inspectable record — so you can prove *which* chunks reached the model and *why* each one was kept or dropped.
+Optimization is only trustworthy if you can see what it did. The `[dashboard]` extra adds a **standalone** local web UI (FastAPI + Chart.js) that turns every `optimize()` call into an inspectable record, so you can prove which chunks reached the model and why each one was kept or dropped.
 
 ```bash
 pip install "tokengate[dashboard]"
@@ -230,12 +230,12 @@ pip install "tokengate[dashboard]"
 
 ### What it covers
 
-- **Token savings per query** — candidate tokens in vs. final-prompt tokens out, and the % saved.
-- **Included / compressed / dropped donut** — the fate of every candidate block at a glance.
-- **Pipeline drop-off funnel** — how many blocks (and tokens) survived each stage: exact dedup → rerank → adaptive cutoff → semantic dedup → MMR → budget. Spot exactly where context is lost.
-- **Per-block decision table** — every block with its source, rerank score, token count, a content preview, and the **reason** it was kept or dropped (e.g. *"semantic duplicate of …"*, *"below adaptive relevance cutoff"*).
+- **Token savings per query:** candidate tokens in versus final-prompt tokens out, and the percentage saved.
+- **Included / compressed / dropped donut:** the fate of every candidate block at a glance.
+- **Pipeline drop-off funnel:** how many blocks (and tokens) survived each stage, from exact dedup through rerank, adaptive cutoff, semantic dedup, MMR, and budgeting. It shows exactly where context is lost.
+- **Per-block decision table:** every block with its source, rerank score, token count, a content preview, and the reason it was kept or dropped (for example, "semantic duplicate of ..." or "below adaptive relevance cutoff").
 - **The exact final prompt** sent to the LLM.
-- **Session history** — browse and compare past queries; a per-session trend line.
+- **Session history:** browse and compare past queries, with a per-session trend line.
 
 ### Record and serve
 
@@ -252,7 +252,7 @@ store.record("session-1", query, result, label="my-app", config={"strategy": "ba
 store.serve_dashboard(port=8080)       # blocking; opens the browser automatically
 ```
 
-`label` is an optional human identifier for the session (your app name, a run id, a user) — it becomes the session's title in the sidebar so runs are easy to tell apart. Without it, the session is titled by its first query.
+`label` is an optional human identifier for the session (your app name, a run id, a user). It becomes the session's title in the sidebar so runs are easy to tell apart. Without it, the session is titled by its first query.
 
 Or point the CLI at any saved store:
 
@@ -270,7 +270,7 @@ python -m tokengate.dashboard --no-browser          # don't auto-open a browser
 | `--no-browser` | off | Don't auto-open the browser |
 | `--beacon-sync` | off | Also import audits from the [Beacon](https://github.com/Mario-Vishal/tokengate) desktop app, if installed |
 
-It's fully standalone — nothing else needs to be running. Beacon integration is strictly opt-in via `--beacon-sync`.
+It's fully standalone, so nothing else needs to be running. Beacon integration is strictly opt-in via `--beacon-sync`.
 
 ---
 
@@ -304,7 +304,7 @@ uv run ruff check src tests  # lint (clean)
 uv run mypy src              # strict type checking (clean)
 ```
 
-All three are green on a fresh clone. GPU integration tests (downloads real models on first run):
+All three are green on a fresh clone. GPU integration tests download real models on the first run:
 
 ```bash
 uv run pytest -m gpu
