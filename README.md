@@ -108,23 +108,9 @@ for d in result.audit.decisions:
 
 ## Pipeline
 
-```mermaid
-flowchart LR
-    C[Retrieved chunks] --> D[Exact dedup]
-    Q[Query] --> E
-    D --> E[BGE-M3 embed<br/>hybrid rank]
-    E --> R[BGE cross-encoder<br/>rerank]
-    R --> AC[Adaptive relevance<br/>cutoff]
-    AC --> SD[Semantic dedup]
-    SD --> M[MMR diversity]
-    M --> B[Value-per-token<br/>budget]
-    B --> P[Optimized prompt]
-    B --> A[(Audit report:<br/>kept / dropped / why)]
-    P --> LLM[Any LLM]
-
-    CMP[Compression<br/>opt-in, off by default]:::off -.-> B
-    classDef off fill:#f4f4f8,stroke:#b9b9c9,stroke-dasharray:5 5,color:#6b7180
-```
+<p align="center">
+  <img src="assets/architecture_diagram.svg" alt="TokenGate pipeline: retrieved chunks flow through dedup, ranking, reranking, adaptive cutoff, diversity selection, and a token budget into an optimized prompt, with every stage recorded in the audit" width="100%" />
+</p>
 
 The same stages, step by step:
 

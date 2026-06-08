@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 700" font-family="'Segoe UI',-apple-system,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#9aa3b6"/>
+    </marker>
+    <linearGradient id="tg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1480" height="700" fill="#ffffff"/>
+
+  <!-- title -->
+  <g transform="translate(56,30)">
+    <rect width="34" height="34" rx="9" fill="url(#tg)"/>
+    <rect x="9" y="8.5" width="3.6" height="17" rx="1.8" fill="#fff"/>
+    <rect x="21.4" y="8.5" width="3.6" height="17" rx="1.8" fill="#fff"/>
+    <rect x="14.6" y="14.6" width="5" height="5" rx="1.4" fill="#fff" transform="rotate(45 17 17)"/>
+    <text x="46" y="24" font-size="23" font-weight="800" fill="#1b1f30">TokenGate pipeline</text>
+  </g>
+
+  <!-- ===== arrows (drawn first, behind boxes) ===== -->
+  <g stroke="#9aa3b6" stroke-width="2.2" fill="none">
+    <!-- row 1 -->
+    <line x1="288" y1="183" x2="340" y2="183" marker-end="url(#ah)"/>
+    <line x1="572" y1="183" x2="624" y2="183" marker-end="url(#ah)"/>
+    <line x1="856" y1="183" x2="908" y2="183" marker-end="url(#ah)"/>
+    <line x1="1140" y1="183" x2="1192" y2="183" marker-end="url(#ah)"/>
+    <!-- query in -->
+    <line x1="740" y1="116" x2="740" y2="150" marker-end="url(#ah)"/>
+    <!-- wrap to row 2 -->
+    <path d="M1308,216 V286 Q1308,300 1294,300 H186 Q172,300 172,314 V372" marker-end="url(#ah)"/>
+    <!-- row 2 -->
+    <line x1="288" y1="405" x2="340" y2="405" marker-end="url(#ah)"/>
+    <line x1="572" y1="405" x2="624" y2="405" marker-end="url(#ah)"/>
+    <line x1="856" y1="405" x2="908" y2="405" marker-end="url(#ah)"/>
+    <line x1="1140" y1="405" x2="1192" y2="405" marker-end="url(#ah)"/>
+  </g>
+  <!-- dashed: compression in, audit out -->
+  <g stroke="#b6bccb" stroke-width="2" fill="none" stroke-dasharray="5 4">
+    <line x1="740" y1="476" x2="740" y2="440" marker-end="url(#ah)"/>
+    <line x1="1024" y1="440" x2="1024" y2="572" marker-end="url(#ah)"/>
+  </g>
+
+  <!-- ===== boxes ===== -->
+  <!-- helper colors: io fill#eef2ff stroke#6366f1 text#3730a3 ; stage fill#fff stroke#818cf8 text#27304a ; llm fill#f5f3ff stroke#8b5cf6 text#5b21b6 -->
+
+  <!-- query -->
+  <g>
+    <rect x="665" y="72" width="150" height="44" rx="11" fill="#eef2ff" stroke="#818cf8" stroke-width="1.5"/>
+    <text x="740" y="94" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="700" fill="#3730a3">Query</text>
+  </g>
+
+  <!-- ROW 1 (y 150, h 66) -->
+  <g font-size="17" font-weight="700" text-anchor="middle">
+    <rect x="56"  y="150" width="232" height="66" rx="13" fill="#eef2ff" stroke="#6366f1" stroke-width="1.6"/>
+    <text x="172" y="183" dominant-baseline="middle" fill="#3730a3">Retrieved chunks</text>
+
+    <rect x="340" y="150" width="232" height="66" rx="13" fill="#ffffff" stroke="#818cf8" stroke-width="1.6"/>
+    <text x="456" y="183" dominant-baseline="middle" fill="#27304a">Exact dedup</text>
+
+    <rect x="624" y="150" width="232" height="66" rx="13" fill="#ffffff" stroke="#818cf8" stroke-width="1.6"/>
+    <text x="740" y="174" dominant-baseline="middle" fill="#27304a" font-size="16">BGE-M3 embed</text>
+    <text x="740" y="196" dominant-baseline="middle" fill="#27304a" font-size="16">+ hybrid rank</text>
+
+    <rect x="908" y="150" width="232" height="66" rx="13" fill="#ffffff" stroke="#818cf8" stroke-width="1.6"/>
+    <text x="1024" y="174" dominant-baseline="middle" fill="#27304a" font-size="16">Cross-encoder</text>
+    <text x="1024" y="196" dominant-baseline="middle" fill="#27304a" font-size="16">rerank</text>
+
+    <rect x="1192" y="150" width="232" height="66" rx="13" fill="#ffffff" stroke="#818cf8" stroke-width="1.6"/>
+    <text x="1308" y="183" dominant-baseline="middle" fill="#27304a">Adaptive cutoff</text>
+  </g>
+
+  <!-- ROW 2 (y 372, h 66) -->
+  <g font-size="17" font-weight="700" text-anchor="middle">
+    <rect x="56"  y="372" width="232" height="66" rx="13" fill="#ffffff" stroke="#818cf8" stroke-width="1.6"/>
+    <text x="172" y="405" dominant-baseline="middle" fill="#27304a">Semantic dedup</text>
+
+    <rect x="340" y="372" width="232" height="66" rx="13" fill="#ffffff" stroke="#818cf8" stroke-width="1.6"/>
+    <text x="456" y="405" dominant-baseline="middle" fill="#27304a">MMR diversity</text>
+
+    <rect x="624" y="372" width="232" height="66" rx="13" fill="#ffffff" stroke="#818cf8" stroke-width="1.6"/>
+    <text x="740" y="396" dominant-baseline="middle" fill="#27304a" font-size="16">Value-per-token</text>
+    <text x="740" y="418" dominant-baseline="middle" fill="#27304a" font-size="16">budget</text>
+
+    <rect x="908" y="372" width="232" height="66" rx="13" fill="#eef2ff" stroke="#6366f1" stroke-width="1.6"/>
+    <text x="1024" y="405" dominant-baseline="middle" fill="#3730a3">Optimized prompt</text>
+
+    <rect x="1192" y="372" width="232" height="66" rx="13" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.6"/>
+    <text x="1308" y="405" dominant-baseline="middle" fill="#5b21b6">Any LLM</text>
+  </g>
+
+  <!-- compression (off, dashed) -->
+  <rect x="624" y="476" width="232" height="52" rx="12" fill="#f7f8fc" stroke="#c4c9da" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <text x="740" y="502" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" fill="#8a90a4">Compression &#183; off by default</text>
+
+  <!-- audit bar -->
+  <rect x="56" y="572" width="1368" height="84" rx="16" fill="#ecfdf5" stroke="#10b981" stroke-width="1.6"/>
+  <rect x="84" y="600" width="92" height="34" rx="9" fill="#10b981"/>
+  <text x="130" y="617" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="800" fill="#ffffff" letter-spacing="1">AUDIT</text>
+  <text x="200" y="606" dominant-baseline="middle" font-size="17.5" font-weight="700" fill="#0a5740">Recorded for every stage above</text>
+  <text x="200" y="630" dominant-baseline="middle" font-size="16" font-weight="500" fill="#0f6b4f">blocks and tokens in and out, and each chunk kept, dropped, or compressed, with its reason and score.</text>
+</svg>
